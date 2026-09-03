@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tarjetón - Liga Yucatán</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#22c55e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-brand" onclick="navigateTo('inicio')">
+        <div class="brand-icon">&#9918;</div>
+        <div class="brand-text">
+          <span class="brand-name">TARJETÓN</span>
+          <span class="brand-sub" id="nav-temporada">TEMPORADA 107</span>
+        </div>
+      </div>
+      <div class="nav-right-controls">
+        <button class="btn-install" id="installBtn" style="display:none" onclick="installApp()">📲 Instalar App</button>
+        <span class="offline-badge" id="offlineIndicator" style="display:none">📡 Sin conexión</span>
+        <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Cambiar tema">🌙</button>
+      </div>
+      <button class="nav-toggle" onclick="toggleMenu()" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#" class="nav-link active" data-section="inicio" onclick="navigateTo('inicio')">Inicio</a></li>
+        <li><a href="#" class="nav-link" data-section="resultados" onclick="navigateTo('resultados')">Resultados</a></li>
+        <li><a href="#" class="nav-link" data-section="standings" onclick="navigateTo('standings')">Posiciones</a></li>
+        <li><a href="#" class="nav-link" data-section="equipos" onclick="navigateTo('equipos')">Equipos</a></li>
+        <li><a href="#" class="nav-link" data-section="jugadores" onclick="navigateTo('jugadores')">Jugadores</a></li>
+        <li><a href="#" class="nav-link" data-section="comparar" onclick="navigateTo('comparar')">Comparar</a></li>
+        <li><a href="#" class="nav-link" data-section="lideres" onclick="navigateTo('lideres')">Líderes</a></li>
+        <li><a href="#" class="nav-link" data-section="calendario" onclick="navigateTo('calendario')">Calendario</a></li>
+        <li><a href="#" class="nav-link" data-section="noticias" onclick="navigateTo('noticias')">Noticias</a></li>
+        <li><a href="#" class="nav-link" data-section="prediccion" onclick="navigateTo('prediccion')">Predicción</a></li>
+        <li><a href="#" class="nav-link" data-section="admin" onclick="navigateTo('admin')">🔒 Admin</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main id="app">
+    <!-- INICIO -->
+    <section id="sec-inicio" class="section active">
+      <div class="hero">
+        <div class="hero-particles" id="heroParticles"></div>
+        <div class="hero-content">
+          <div class="hero-badge" id="hero-badge">TEMPORADA 107</div>
+          <h1 class="hero-title">Liga Infantil y Juvenil<br>de Béisbol Yucatán</h1>
+          <p class="hero-sub" id="hero-season-info">Temporada 107 &middot; 22 jornadas</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" onclick="navigateTo('resultados')">Ver resultados</button>
+            <button class="btn btn-outline" onclick="navigateTo('equipos')">Buscar equipo</button>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <div class="hero-diamond">
+            <div class="diamond-base b1"></div>
+            <div class="diamond-base b2"></div>
+            <div class="diamond-base b3"></div>
+            <div class="diamond-base home"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container">
+        <div class="section-header">
+          <h2>Categorías</h2>
+        </div>
+        <div class="cat-grid" id="categorias-grid"></div>
+
+        <div class="section-header" style="margin-top:3rem">
+          <h2>Últimos resultados</h2>
+          <button class="btn btn-sm" onclick="navigateTo('resultados')">Ver todos</button>
+        </div>
+        <div id="inicio-resultados" class="games-grid"></div>
+
+        <div class="section-header" style="margin-top:3rem">
+          <h2>Noticias</h2>
+        </div>
+        <div id="inicio-noticias" class="news-grid"></div>
+      </div>
+    </section>
+
+    <!-- RESULTADOS -->
+    <section id="sec-resultados" class="section">
+      <div class="container">
+        <div class="section-header">
+          <h2>Resultados</h2>
+        </div>
+        <div class="filters">
+          <div class="filter-group">
+            <label>Categoría</label>
+            <select id="res-cat" onchange="onResCatChange()"></select>
+          </div>
+          <div class="filter-group">
+            <label>Grupo</label>
+            <div class="pill-tabs" id="res-grupo-tabs"></div>
+          </div>
+          <div class="filter-group">
+            <label>Jornada</label>
+            <div class="jornada-nav">
+              <button class="btn-icon" onclick="prevJornada()">&lsaquo;</button>
+              <select id="res-jornada" onchange="loadResultados()"></select>
+              <button class="btn-icon" onclick="nextJornada()">&rsaquo;</button>
+            </div>
+          </div>
+        </div>
+        <div id="resultados-fecha" class="results-date"></div>
+        <div id="resultados-list" class="games-grid"></div>
+        <div id="resultados-empty" class="empty-state" style="display:none">
+          <div class="empty-icon">&#9918;</div>
+          <p>No hay resultados para esta selección</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- STANDINGS -->
+    <section id="sec-standings" class="section">
+      <div class="container">
+        <div class="section-header">
+          <h2>Tabla de Posiciones</h2>
+          <button class="btn btn-primary" onclick="descargarCategoria()">&#128196; Imprimir categoría completa</button>
+          <button class="btn btn-outline" onclick="exportStandingsCSV()">&#128202; Exportar Excel</button>
+        </div>
+        <div class="filters">
+          <div class="filter-group">
+            <label>Categoría</label>
+            <select id="stand-cat" onchange="onStandCatChange()"></select>
+          </div>
+          <div class="filter-group">
+            <label>Grupo</label>
+            <div class="pill-tabs" id="stand-grupo-tabs"></div>
+          </div>
+        </div>
+        <div id="standings-list"></div>
+      </div>
+    </section>
+
+    <!-- EQUIPOS -->
+    <section id="sec-equipos" class="section">
+      <div class="container">
+        <div class="section-header">
+          <h2>Equipos</h2>
+        </div>
+
+        <div class="search-box">
+          <input type="text" id="equipo-search" placeholder="Buscar equipo..." oninput="filterEquipos()">
+        </div>
+
+        <div class="filters" style="margin-bottom:1rem">
+          <div class="filter-group">
+            <label>Categoría</label>
+            <select id="eq-cat-filter" onchange="filterEquipos()">
+              <option value="">Todas</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Grupo</label>
+            <div class="pill-tabs" id="eq-grupo-tabs">
+              <button class="pill active" data-grupo="" onclick="setEqGrupo('')">Todos</button>
+              <button class="pill" data-grupo="A I" onclick="setEqGrupo('A I')">A I</button>
+              <button class="pill" data-grupo="A II" onclick="setEqGrupo('A II')">A II</button>
+              <button class="pill" data-grupo="A III" onclick="setEqGrupo('A III')">A III</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="equipos-list" class="equipos-grid"></div>
+
+        <!-- DETALLE DE EQUIPO -->
+        <div id="equipo-detail" class="equipo-detail" style="display:none">
+          <div class="detail-topbar">
+            <button class="btn btn-outline btn-back" onclick="closeEquipoDetail()">&larr; Volver a equipos</button>
+            <div class="print-controls" id="btn-descargar" style="display:none">
+              <button class="btn btn-primary" onclick="descargarTarjeton()">&#128196; Imprimir Tarjetón</button>
+              <button class="btn btn-outline" onclick="exportEquipoCSV()">&#128202; Exportar Excel</button>
+            </div>
+          </div>
+          <div class="equipo-header-card" id="equipo-header-card"></div>
+          <div class="section-header" style="margin-top:1.5rem">
+            <h2>Plantilla</h2>
+          </div>
+          <div id="equipo-roster"></div>
+          <div id="equipo-charts" style="margin-top:1.5rem"></div>
+          <div class="section-header" style="margin-top:1.5rem">
+            <h2>Posición en el grupo</h2>
+          </div>
+          <div id="equipo-standing"></div>
+          <div class="section-header" style="margin-top:1.5rem">
+            <h2>Todos los resultados</h2>
+          </div>
+          <div id="equipo-resultados" class="games-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- JUGADORES -->
+    <section id="sec-jugadores" class="section">
+      <div class="container">
+        <div class="section-header">
+          <h2>Buscar Jugadores</h2>
+        </div>
+        <div class="search-box">
+          <input type="text" id="jugador-search" placeholder="Buscar jugador por nombre (mín. 3 caracteres)..." oninput="searchJugadores()">
+        </div>
+        <div id="jugadores-loading" class="empty-state" style="display:none">
+          <div class="inline-spinner"></div> Buscando jugadores...
+        </div>
+        <div id="jugadores-results"></div>
+      </div>
+    </section>
+
+    <!-- COMPARAR -->
+    <section id="sec-comparar" class="section">
+      <div class="container">
+        <div class="section-header">
+          <h2>Comparar Equipos</h2>
+        </div>
+        <div class="compare-selectors">
+          <div class="compare-team-select">
+            <label>Equipo A</label>
+            <select id="compare-team-a"></select>
+          </div>
+          <div class="compare-vs">VS</div>
+          <div class="compare-team-select">
+            <label>Equipo B</label>
+            <select id="compare-team-b"></select>
+          </div>
+          <button class="btn btn-primary" onclick="compareTeams()">⚔️ Comparar</button>
+        </div>
+        <div id="compare-results"></div>
+      </div>
+    </section>
+
+    <!-- LÍDERES -->
+    <section id="sec-lideres" class="section">
+      <div class="container">
+        <div class="section-header">
+          <h2>Líderes de la Liga</h2>
+        </div>
+        <div class="leader-tabs">
+          <button class="pill active" data-stat="AVG" onclick="switchLeaderTab('AVG')">AVG</button>
+          <button class="pill" data-stat="HR" onclick="switchLeaderTab('HR')">HR</button>
+          <button class="pill" data-stat="H" onclick="switchLeaderTab('H')">Hits</button>
+          <button class="pill" data-stat="R" onclick="switchLeaderTab('R')">Carreras</button>
+          <button class="pill" data-stat="SLG" onclick="switchLeaderTab('SLG')">SLG</button>
+        </div>
+        <div id="lideres-loading" class="empty-state" style="display:none">
+          <div class="inline-spinner"></div> Cargando datos de jugadores...
+        </div>
+        <div id="lideres-results"></div>
+      </div>
+    </section>
+
+    <!-- CALENDARIO -->
+    <section id="sec-calendario" class="section">
+      <div class="container">
+        <div class="section-header">
+          <h2>Calendario de Jornadas</h2>
+        </div>
+        <div id="calendario-list" class="calendario-grid"></div>
+        <div id="calendario-games-panel" class="cal-games-panel" style="display:none">
+          <div class="section-header" style="margin-top:1.5rem">
+            <h2 id="cal-games-title">Juegos de la Jornada</h2>
+            <button class="btn btn-sm" onclick="closeCalGames()">✕ Cerrar</button>
+          </div>
+          <div id="cal-games-list" class="games-grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- NOTICIAS -->
+    <section id="sec-noticias" class="section">
+      <div class="container">
+        <div class="section-header">
+          <h2>Noticias</h2>
+        </div>
+        <div id="noticias-list" class="news-grid-full"></div>
+      </div>
+    </section>
+
+    <!-- PREDICCIÓN -->
+    <section id="sec-prediccion" class="section">
+      <div class="container">
+        <div class="section-header">
+          <h2>🔮 Predicción de Partidos</h2>
+        </div>
+        <div class="prediction-box">
+          <div class="prediction-selectors">
+            <div class="prediction-team-select">
+              <label>Equipo A</label>
+              <select id="pred-team-a"></select>
+            </div>
+            <div class="prediction-vs">VS</div>
+            <div class="prediction-team-select">
+              <label>Equipo B</label>
+              <select id="pred-team-b"></select>
+            </div>
+          </div>
+          <button class="btn btn-primary prediction-btn" onclick="runPrediction()">🔮 Predecir</button>
+        </div>
+        <div id="prediction-loading" class="empty-state" style="display:none">
+          <div class="inline-spinner"></div> Analizando estadísticas...
+        </div>
+        <div id="prediction-results"></div>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="sec-admin" class="section">
+      <div class="container">
+        <div class="section-header">
+          <h2>🔒 Panel de Administración</h2>
+        </div>
+        <div id="admin-login" class="admin-login-box">
+          <div class="admin-lock-icon">🔒</div>
+          <p>Ingresa la contraseña de administrador</p>
+          <div class="admin-login-form">
+            <input type="password" id="admin-password" placeholder="Contraseña..." onkeydown="if(event.key==='Enter')adminLogin()">
+            <button class="btn btn-primary" onclick="adminLogin()">Acceder</button>
+          </div>
+          <p id="admin-login-error" class="admin-error" style="display:none">Contraseña incorrecta</p>
+        </div>
+        <div id="admin-panel" style="display:none">
+          <div class="admin-grid">
+            <div class="admin-card">
+              <h3>📝 Notas de Equipo</h3>
+              <div class="admin-field">
+                <label>Seleccionar Equipo</label>
+                <select id="admin-team-select" onchange="loadAdminTeamNote()"></select>
+              </div>
+              <div class="admin-field">
+                <label>Nota del equipo</label>
+                <textarea id="admin-team-note" rows="4" placeholder="Escribe una nota para este equipo..."></textarea>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="saveAdminTeamNote()">💾 Guardar Nota</button>
+              <p id="admin-note-saved" class="admin-success" style="display:none">✅ Nota guardada</p>
+            </div>
+
+            <div class="admin-card">
+              <h3>🏷️ Anotaciones de Jugador</h3>
+              <div class="admin-field">
+                <label>Buscar Jugador</label>
+                <input type="text" id="admin-player-search" placeholder="Nombre del jugador..." oninput="searchAdminPlayers()">
+              </div>
+              <div id="admin-player-results" class="admin-player-list"></div>
+              <div id="admin-player-annotation-form" style="display:none">
+                <div class="admin-field">
+                  <label>Jugador seleccionado: <strong id="admin-selected-player"></strong></label>
+                  <input type="text" id="admin-player-tag" placeholder="Ej: Pitcher estrella, Lesionado, MVP...">
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="saveAdminPlayerAnnotation()">💾 Guardar Anotación</button>
+                <p id="admin-annotation-saved" class="admin-success" style="display:none">✅ Anotación guardada</p>
+              </div>
+            </div>
+
+            <div class="admin-card">
+              <h3>⚙️ Configuración de Temporada</h3>
+              <div class="admin-field">
+                <label>Nombre de la temporada</label>
+                <input type="text" id="admin-season-name" placeholder="Ej: TEMPORADA 108">
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="saveAdminSeasonName()">💾 Guardar</button>
+              <p id="admin-season-saved" class="admin-success" style="display:none">✅ Nombre actualizado</p>
+            </div>
+
+            <div class="admin-card">
+              <h3>🛠️ Herramientas</h3>
+              <div class="admin-tools">
+                <button class="btn btn-outline" onclick="adminClearCache()">🗑️ Limpiar Cache</button>
+                <button class="btn btn-outline" onclick="adminExportData()">📦 Exportar Datos JSON</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-brand">&#9918; TARJETÓN</div>
+      <p>Liga Infantil y Juvenil de Béisbol Yucatán A.C. &middot; Temporada 107</p>
+      <p class="footer-sub">Datos obtenidos de <a href="https://ligayucatan.org" target="_blank">ligayucatan.org</a></p>
+      <div class="footer-links">
+        <a href="#" onclick="navigateTo('resultados')">Resultados</a>
+        <a href="#" onclick="navigateTo('standings')">Posiciones</a>
+        <a href="#" onclick="navigateTo('equipos')">Equipos</a>
+        <a href="#" onclick="navigateTo('calendario')">Calendario</a>
+      </div>
+    </div>
+  </footer>
+
+  <div class="loading-overlay" id="loading">
+    <div class="spinner"></div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(function(){});
+    }
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+  </script>
+</body>
+</html>

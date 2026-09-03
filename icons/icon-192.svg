@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1118"/>
+      <stop offset="100%" stop-color="#141d28"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="40" fill="url(#bg)"/>
+  <circle cx="96" cy="96" r="58" fill="none" stroke="url(#glow)" stroke-width="4"/>
+  <circle cx="96" cy="96" r="52" fill="#f5f5f0"/>
+  <path d="M96 44 C82 58, 78 78, 82 96 C78 114, 82 134, 96 148" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M96 44 C110 58, 114 78, 110 96 C114 114, 110 134, 96 148" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="84" y1="52" x2="89" y2="56" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="80" y1="62" x2="86" y2="65" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="79" y1="73" x2="85" y2="75" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="79" y1="84" x2="85" y2="85" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="80" y1="96" x2="85" y2="96" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="79" y1="108" x2="85" y2="107" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="79" y1="119" x2="85" y2="117" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="80" y1="130" x2="86" y2="127" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="84" y1="140" x2="89" y2="136" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="108" y1="52" x2="103" y2="56" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="112" y1="62" x2="106" y2="65" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="113" y1="73" x2="107" y2="75" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="113" y1="84" x2="107" y2="85" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="112" y1="96" x2="107" y2="96" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="113" y1="108" x2="107" y2="107" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="113" y1="119" x2="107" y2="117" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="112" y1="130" x2="106" y2="127" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="108" y1="140" x2="103" y2="136" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
