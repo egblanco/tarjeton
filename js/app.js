@@ -202,7 +202,7 @@ function renderRoster(jugadores, bateo) {
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <div class="roster-count">${jugadores.length} jugadores${hasStats ? ' · Estadísticas reales Temporada 107' : ''}</div>
+      <div class="roster-count">${jugadores.length} jugadores${hasStats ? ' · Estadísticas reales Temporada 108' : ''}</div>
     </div>`;
 }
 
@@ -280,7 +280,7 @@ function descargarTarjeton() {
   const jugadores = eq._jugadores;
   const logoSrc = logoUrl(eq.foto) || '';
   const pct = eq.points || '---';
-  const temporada = state.temporada ? state.temporada.Temporada : 'TEMPORADA 107';
+  const temporada = state.temporada ? state.temporada.Temporada : 'TEMPORADA 108';
 
   const bateo = eq._bateo || [];
   const bateoMap = {};
@@ -405,7 +405,7 @@ async function descargarCategoria() {
   if (!input) return;
   const perPage = Math.max(1, Math.min(20, parseInt(input) || 4));
 
-  const temporada = state.temporada ? state.temporada.Temporada : 'TEMPORADA 107';
+  const temporada = state.temporada ? state.temporada.Temporada : 'TEMPORADA 108';
   const grupos = await fetchStanding(state.temporada.TemporadaID, catID);
   if (grupos.length === 0) return;
 
