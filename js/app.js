@@ -162,7 +162,7 @@ function renderJugadorRow(j, idx, stats) {
       <td class="jugador-nombre">${state.currentEquipo && state.currentEquipo.foto ? '<img class="roster-team-logo" src="' + logoUrl(state.currentEquipo.foto) + '" onerror="this.style.display=\'none\'" alt="">' : ''}${j.nombre}</td>
       <td class="jugador-edad">${edadStr}</td>
       <td class="jugador-stat">${hasStats ? s.PCT : '-'}</td>
-      <td class="jugador-stat">${hasStats ? s.SLG || '-' : '-'}</td>
+      <td class="jugador-stat">${hasStats ? recPitcheo(s, edad) : '-'}</td>
       <td class="jugador-stat">${hasStats ? s.R : '-'}</td>
       <td class="jugador-stat">${hasStats ? s.H : '-'}</td>
       <td class="jugador-stat">${hasStats ? s.H2 : '-'}</td>
@@ -181,6 +181,33 @@ function calcSLG(s) {
   return ((h1 + h2*2 + h3*3 + hr*4) / vb).toFixed(4);
 }
 
+// LEYENDA: 1=Recta  2=Cambio  3=Curva(11+)  4=Slider(11+)  5=Nudillos
+function recPitcheo(s, edad) {
+  if (!s) return '-';
+  const avg = parseFloat(s.PCT) || 0;
+  const slg = parseFloat(s.SLG) || 0;
+  const br = parseInt(s.R) || 0;
+  const h = parseInt(s.H) || 0;
+  const h2 = parseInt(s.H2) || 0;
+  const h3 = parseInt(s.H3) || 0;
+  const hr = parseInt(s.HR) || 0;
+  const vb = parseInt(s.VB) || 0;
+  if (vb === 0) return '-';
+  const extraBases = h2 + h3 + hr;
+  const mayor = edad >= 11;
+  // Duro: bateador de poder → off-speed, no rectas cantadas
+  if (slg >= 0.450 && extraBases >= 3) return mayor ? '2-3-2-4-2' : '2-5-2-5-2';
+  // Esquinas: pega extrabases → esquinas y cambiar velocidad
+  if ((h2 + h3 >= 3) || (slg >= 0.350 && extraBases >= 2)) return mayor ? '1-2-3-1-4' : '1-2-5-1-2';
+  // Control: buen contacto → adentro y romperla
+  if (avg >= 0.300 && h >= 5) return mayor ? '1-1-3-2-4' : '1-1-2-5-2';
+  // Recomendable: sólido → mezclar todo
+  if (avg >= 0.250 || (slg >= 0.280 && br >= 3)) return mayor ? '1-2-1-3-2' : '1-2-1-2-5';
+  // En desarrollo → rectas por la zona
+  if (h > 0 || br > 0) return '1-1-1-2-1';
+  return '1-1-1-1-1';
+}
+
 function renderRoster(jugadores, bateo) {
   if (!jugadores || jugadores.length === 0) {
     return '<div class="empty-state"><p>No hay jugadores registrados</p></div>';
@@ -197,7 +224,7 @@ function renderRoster(jugadores, bateo) {
       <table class="roster-table">
         <thead><tr>
           <th>#</th><th>Jugador</th><th>Edad</th>
-          <th class="stat-col">AVG</th><th class="stat-col">SLG</th><th class="stat-col">BR</th>
+          <th class="stat-col">AVG</th><th class="stat-col">PITCH</th><th class="stat-col">BR</th>
           <th class="stat-col">H1</th><th class="stat-col">H2</th><th class="stat-col">H3</th><th class="stat-col">HR</th>
         </tr></thead>
         <tbody>${rows}</tbody>
@@ -291,7 +318,7 @@ function descargarTarjeton() {
     const edadStr = edad !== null ? edad : '';
     const s = bateoMap[j.JugadorID];
     const avg = s ? s.PCT : '';
-    const slg = s ? s.SLG : '';
+    const slg = s ? recPitcheo(s, edad) : '';
     const br = s ? s.R : '';
     const h1 = s ? s.H : '';
     const h2 = s ? s.H2 : '';
@@ -325,6 +352,10 @@ function descargarTarjeton() {
   const scale = Math.min(1, 1 / cols, 1 / rws);
   const fs = sz => Math.max(4, Math.round(sz * scale));
 
+  const leyendaPitch = `<div style="background:#f0f9ff;border:1px solid #0ea5e9;border-radius:4px;padding:${fs(4)}px ${fs(6)}px;margin-top:${fs(3)}px;font-size:${fs(7)}px;text-align:center;">
+  <b>PITCH:</b> 1=Recta &nbsp; 2=Cambio &nbsp; 3=Curva<span style="color:#e11d48;font-size:${fs(5)}px;">(11+)</span> &nbsp; 4=Slider<span style="color:#e11d48;font-size:${fs(5)}px;">(11+)</span> &nbsp; 5=Nudillos
+</div>`;
+
   const card = (ci) => `<div class="card">
 <div style="display:flex;align-items:center;gap:${fs(12)}px;padding-bottom:${fs(6)}px;margin-bottom:${fs(3)}px;border-bottom:2px solid #14532d;">
   ${logoSrc ? `<img src="${logoSrc}" style="width:${fs(40)}px;height:${fs(40)}px;border-radius:50%;object-fit:cover;border:2px solid #14532d;" onerror="this.style.display='none'">` : ''}
@@ -341,11 +372,12 @@ function descargarTarjeton() {
 <table style="width:100%;border-collapse:collapse;">
   <thead><tr>
     <th class="th">#</th><th class="th" style="text-align:left">JUGADOR</th><th class="th">EDAD</th>
-    <th class="ths">AVG</th><th class="ths">SLG</th><th class="ths">BR</th>
+    <th class="ths">AVG</th><th class="ths">PITCH</th><th class="ths">BR</th>
     <th class="ths">H1</th><th class="ths">H2</th><th class="ths">H3</th><th class="ths">HR</th>
   </tr></thead>
   <tbody>${rows}</tbody>
 </table>
+${leyendaPitch}
 </div>`;
 
   const cards = Array.from({length: copias}, (_, i) => card(i + 1)).join('\n');
@@ -375,7 +407,7 @@ html, body { margin:0; padding:0; font-family:'Segoe UI',Arial,sans-serif; color
 .th { background:#14532d;color:#fff;padding:${fs(3)}px;font-size:${fs(8)}px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;border:1px solid #0f4023; }
 .ths { background:#1e3a5f;color:#fff;padding:${fs(3)}px;font-size:${fs(8)}px;font-weight:800;letter-spacing:0.5px;border:1px solid #0f4023; }
 td { padding:${fs(2)}px ${fs(3)}px;font-size:${fs(7)}px;font-weight:500;border:1px solid #d1d5db;text-align:center; }
-td.nombre { text-align:left;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:${fs(120)}px; }
+td.nombre { text-align:left;font-weight:700;word-break:break-word;white-space:normal;font-size:${fs(6)}px; }
 td.edad { color:#16a34a;font-weight:700; }
 td.stat { background:#fefce8; }
 tr:nth-child(even) td { background:#f3f4f6; }
@@ -443,6 +475,10 @@ async function descargarCategoria() {
   const scale = Math.min(1, 1 / cols, 1 / rws);
   const fs = sz => Math.max(4, Math.round(sz * scale));
 
+  const leyendaCat = `<div style="background:#f0f9ff;border:1px solid #0ea5e9;border-radius:4px;padding:${fs(4)}px ${fs(6)}px;margin-top:${fs(3)}px;font-size:${fs(7)}px;text-align:center;">
+  <b>PITCH:</b> 1=Recta &nbsp; 2=Cambio &nbsp; 3=Curva<span style="color:#e11d48;font-size:${fs(5)}px;">(11+)</span> &nbsp; 4=Slider<span style="color:#e11d48;font-size:${fs(5)}px;">(11+)</span> &nbsp; 5=Nudillos
+</div>`;
+
   const btn = document.querySelector('#sec-standings .btn-primary');
   const origText = btn.innerHTML;
   btn.innerHTML = '<span class="inline-spinner"></span> Cargando equipos...';
@@ -474,7 +510,7 @@ async function descargarCategoria() {
         <td class="nombre">${j.nombre}</td>
         <td class="edad">${edad||''}</td>
         <td class="stat">${s?s.PCT:''}</td>
-        <td class="stat">${s?s.SLG:''}</td>
+        <td class="stat">${s?recPitcheo(s,edad):''}</td>
         <td class="stat">${s?s.R:''}</td>
         <td class="stat">${s?s.H:''}</td>
         <td class="stat">${s?s.H2:''}</td>
@@ -502,11 +538,12 @@ async function descargarCategoria() {
 <table style="width:100%;border-collapse:collapse;">
   <thead><tr>
     <th class="th">#</th><th class="th" style="text-align:left">JUGADOR</th><th class="th">EDAD</th>
-    <th class="ths">AVG</th><th class="ths">SLG</th><th class="ths">BR</th>
+    <th class="ths">AVG</th><th class="ths">PITCH</th><th class="ths">BR</th>
     <th class="ths">H1</th><th class="ths">H2</th><th class="ths">H3</th><th class="ths">HR</th>
   </tr></thead>
   <tbody>${rows}</tbody>
 </table>
+${leyendaCat}
 </div>`);
   }
 
@@ -542,7 +579,7 @@ html, body { font-family:'Segoe UI',Arial,sans-serif; color:#111; }
 .th { background:#14532d;color:#fff;padding:${fs(3)}px;font-size:${fs(8)}px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;border:1px solid #0f4023; }
 .ths { background:#1e3a5f;color:#fff;padding:${fs(3)}px;font-size:${fs(8)}px;font-weight:800;letter-spacing:0.5px;border:1px solid #0f4023; }
 td { padding:${fs(2)}px ${fs(3)}px;font-size:${fs(7)}px;font-weight:500;border:1px solid #d1d5db;text-align:center; }
-td.nombre { text-align:left;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:${fs(120)}px; }
+td.nombre { text-align:left;font-weight:700;word-break:break-word;white-space:normal;font-size:${fs(6)}px; }
 td.edad { color:#16a34a;font-weight:700; }
 td.stat { background:#fefce8; }
 tr:nth-child(even) td { background:#f3f4f6; }
