@@ -195,14 +195,14 @@ function recPitcheo(s, edad) {
   if (vb === 0) return '-';
   const extraBases = h2 + h3 + hr;
   const mayor = edad >= 11;
-  // Duro: bateador de poder → off-speed, no rectas cantadas
-  if (slg >= 0.450 && extraBases >= 3) return mayor ? '2-3-2-4-2' : '2-5-2-5-2';
+  // Duro: bateador de poder → off-speed
+  if (slg >= 0.200 && extraBases >= 1) return mayor ? '2-3-2-4-2' : '2-5-2-5-2';
   // Esquinas: pega extrabases → esquinas y cambiar velocidad
-  if ((h2 + h3 >= 3) || (slg >= 0.350 && extraBases >= 2)) return mayor ? '1-2-3-1-4' : '1-2-5-1-2';
+  if (h2 >= 1 || h3 >= 1 || hr >= 1) return mayor ? '1-2-3-1-4' : '1-2-5-1-2';
   // Control: buen contacto → adentro y romperla
-  if (avg >= 0.300 && h >= 5) return mayor ? '1-1-3-2-4' : '1-1-2-5-2';
-  // Recomendable: sólido → mezclar todo
-  if (avg >= 0.250 || (slg >= 0.280 && br >= 3)) return mayor ? '1-2-1-3-2' : '1-2-1-2-5';
+  if (avg >= 0.150 && h >= 2) return mayor ? '1-1-3-2-4' : '1-1-2-5-2';
+  // Recomendable: sólido → mezclar
+  if (avg >= 0.100 || br >= 1) return mayor ? '1-2-1-3-2' : '1-2-1-2-5';
   // En desarrollo → rectas por la zona
   if (h > 0 || br > 0) return '1-1-1-2-1';
   return '1-1-1-1-1';
