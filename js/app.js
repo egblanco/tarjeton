@@ -443,16 +443,30 @@ async function descargarCategoria() {
   const cat = state.categorias.find(c => c.CategoriaID === catID);
   if (!cat) return;
 
+  const grupos = await fetchStanding(state.temporada.TemporadaID, catID);
+  if (grupos.length === 0) return;
+
+  const grupoNames = grupos.map(g => g.clasificacion);
+  let selectedGrupo = null;
+  if (grupoNames.length > 1) {
+    const opciones = grupoNames.map((g, i) => `${i + 1} = ${g}`).join('\n');
+    const sel = prompt(`¿Qué grupo imprimir?\n${opciones}\n0 = TODOS`, '1');
+    if (sel === null) return;
+    const idx = parseInt(sel);
+    if (idx > 0 && idx <= grupoNames.length) {
+      selectedGrupo = grupoNames[idx - 1];
+    }
+  }
+
   const input = prompt('¿Cuántos equipos por página?', '4');
   if (!input) return;
   const perPage = Math.max(1, Math.min(20, parseInt(input) || 4));
 
   const temporada = state.temporada ? state.temporada.Temporada : 'TEMPORADA 108';
-  const grupos = await fetchStanding(state.temporada.TemporadaID, catID);
-  if (grupos.length === 0) return;
 
   const allTeams = [];
   for (const g of grupos) {
+    if (selectedGrupo && g.clasificacion !== selectedGrupo) continue;
     for (const eq of g.equipos) {
       allTeams.push({ ...eq, grupo: g.clasificacion });
     }
