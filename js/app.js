@@ -162,13 +162,22 @@ function renderJugadorRow(j, idx, stats) {
       <td class="jugador-nombre">${state.currentEquipo && state.currentEquipo.foto ? '<img class="roster-team-logo" src="' + logoUrl(state.currentEquipo.foto) + '" onerror="this.style.display=\'none\'" alt="">' : ''}${j.nombre}</td>
       <td class="jugador-edad">${edadStr}</td>
       <td class="jugador-stat">${hasStats ? s.PCT : '-'}</td>
+      <td class="jugador-stat">${hasStats ? calcISO(s) : '-'}</td>
       <td class="jugador-stat">${hasStats ? recPitcheo(s, edad) : '-'}</td>
       <td class="jugador-stat">${hasStats ? s.R : '-'}</td>
       <td class="jugador-stat">${hasStats ? s.H : '-'}</td>
       <td class="jugador-stat">${hasStats ? s.H2 : '-'}</td>
       <td class="jugador-stat">${hasStats ? s.H3 : '-'}</td>
       <td class="jugador-stat">${hasStats ? s.HR : '-'}</td>
+      <td class="jugador-stat">${hasStats ? calcISO(s) : '-'}</td>
     </tr>`;
+}
+
+function calcISO(s) {
+  const avg = parseFloat(s.PCT) || 0;
+  const slg = parseFloat(s.SLG || calcSLG(s)) || 0;
+  const iso = slg - avg;
+  return iso > 0 ? iso.toFixed(3) : '.000';
 }
 
 function calcSLG(s) {
@@ -224,7 +233,7 @@ function renderRoster(jugadores, bateo) {
       <table class="roster-table">
         <thead><tr>
           <th>#</th><th>Jugador</th><th>Edad</th>
-          <th class="stat-col">AVG</th><th class="stat-col">PITCH</th><th class="stat-col">BR</th>
+          <th class="stat-col">AVG</th><th class="stat-col">ISO</th><th class="stat-col">PITCH</th><th class="stat-col">BR</th>
           <th class="stat-col">H1</th><th class="stat-col">H2</th><th class="stat-col">H3</th><th class="stat-col">HR</th>
         </tr></thead>
         <tbody>${rows}</tbody>
@@ -318,7 +327,8 @@ function descargarTarjeton() {
     const edadStr = edad !== null ? edad : '';
     const s = bateoMap[j.JugadorID];
     const avg = s ? s.PCT : '';
-    const slg = s ? recPitcheo(s, edad) : '';
+    const iso = s ? calcISO(s) : '';
+    const pitch = s ? recPitcheo(s, edad) : '';
     const br = s ? s.R : '';
     const h1 = s ? s.H : '';
     const h2 = s ? s.H2 : '';
@@ -329,7 +339,8 @@ function descargarTarjeton() {
       <td class="nombre">${j.nombre}</td>
       <td class="edad">${edadStr}</td>
       <td class="stat">${avg}</td>
-      <td class="stat">${slg}</td>
+      <td class="stat">${iso}</td>
+      <td class="stat">${pitch}</td>
       <td class="stat">${br}</td>
       <td class="stat">${h1}</td>
       <td class="stat">${h2}</td>
@@ -372,7 +383,7 @@ function descargarTarjeton() {
 <table style="width:100%;border-collapse:collapse;">
   <thead><tr>
     <th class="th">#</th><th class="th" style="text-align:left">JUGADOR</th><th class="th">EDAD</th>
-    <th class="ths">AVG</th><th class="ths">PITCH</th><th class="ths">BR</th>
+    <th class="ths">AVG</th><th class="ths">ISO</th><th class="ths">PITCH</th><th class="ths">BR</th>
     <th class="ths">H1</th><th class="ths">H2</th><th class="ths">H3</th><th class="ths">HR</th>
   </tr></thead>
   <tbody>${rows}</tbody>
@@ -510,6 +521,7 @@ async function descargarCategoria() {
         <td class="nombre">${j.nombre}</td>
         <td class="edad">${edad||''}</td>
         <td class="stat">${s?s.PCT:''}</td>
+        <td class="stat">${s?calcISO(s):''}</td>
         <td class="stat">${s?recPitcheo(s,edad):''}</td>
         <td class="stat">${s?s.R:''}</td>
         <td class="stat">${s?s.H:''}</td>
@@ -538,7 +550,7 @@ async function descargarCategoria() {
 <table style="width:100%;border-collapse:collapse;">
   <thead><tr>
     <th class="th">#</th><th class="th" style="text-align:left">JUGADOR</th><th class="th">EDAD</th>
-    <th class="ths">AVG</th><th class="ths">PITCH</th><th class="ths">BR</th>
+    <th class="ths">AVG</th><th class="ths">ISO</th><th class="ths">PITCH</th><th class="ths">BR</th>
     <th class="ths">H1</th><th class="ths">H2</th><th class="ths">H3</th><th class="ths">HR</th>
   </tr></thead>
   <tbody>${rows}</tbody>
