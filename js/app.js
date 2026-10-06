@@ -169,7 +169,6 @@ function renderJugadorRow(j, idx, stats) {
       <td class="jugador-stat">${hasStats ? s.H2 : '-'}</td>
       <td class="jugador-stat">${hasStats ? s.H3 : '-'}</td>
       <td class="jugador-stat">${hasStats ? s.HR : '-'}</td>
-      <td class="jugador-stat">${hasStats ? calcISO(s) : '-'}</td>
     </tr>`;
 }
 
