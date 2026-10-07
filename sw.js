@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tarjeton-v5';
+const CACHE_NAME = 'tarjeton-v6';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -30,6 +30,10 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
+
+  if (url.pathname.endsWith('.xml') || url.pathname.endsWith('robots.txt') || url.pathname.includes('google') ) {
+    return;
+  }
 
   if (url.href.includes('apiliga.serteza.com')) {
     event.respondWith(
