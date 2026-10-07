@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tarjeton-v4';
+const CACHE_NAME = 'tarjeton-v5';
 const STATIC_ASSETS = [
   './',
   './index.html',

@@ -2296,6 +2296,758 @@ renderJugadorRow = function(j, idx, stats) {
   return html;
 };
 
+// ══════════════════════════════════════════
+// FEATURE 1: PLAYER vs PLAYER (1v1)
+// ══════════════════════════════════════════
+
+let p1v1Selected = { a: null, b: null };
+let p1v1SearchTimeout = null;
+
+function switchCompareMode(mode) {
+  document.getElementById('compare-mode-equipos').style.display = mode === 'equipos' ? '' : 'none';
+  document.getElementById('compare-mode-jugadores').style.display = mode === 'jugadores' ? '' : 'none';
+  document.querySelectorAll('.compare-mode-tabs .pill').forEach(p => {
+    const isEquipos = p.textContent.includes('Equipos');
+    p.classList.toggle('active', (mode === 'equipos' && isEquipos) || (mode === 'jugadores' && !isEquipos));
+  });
+  if (mode === 'jugadores' && !state.playerCacheAll) {
+    document.getElementById('p1v1-loading').style.display = '';
+    loadAllPlayers('p1v1-loading').then(() => {
+      document.getElementById('p1v1-loading').style.display = 'none';
+    });
+  }
+}
+
+function search1v1Player(side) {
+  clearTimeout(p1v1SearchTimeout);
+  p1v1SearchTimeout = setTimeout(() => doSearch1v1(side), 300);
+}
+
+function doSearch1v1(side) {
+  const query = (document.getElementById('p1v1-search-' + side).value || '').trim().toUpperCase();
+  const dropdown = document.getElementById('p1v1-results-' + side);
+  if (query.length < 2) { dropdown.innerHTML = ''; return; }
+  if (!state.playerCacheAll) { dropdown.innerHTML = '<div style="padding:.5rem;font-size:.8rem;color:var(--text-dim)">Cargando datos...</div>'; return; }
+
+  const results = [];
+  for (const eq of state.equiposEnriched) {
+    const cached = state.playerCache[eq.InscripcionID];
+    if (!cached) continue;
+    const bateoMap = {};
+    (cached.bateo || []).forEach(b => { b.SLG = calcSLG(b); bateoMap[b.JugadorID] = b; });
+    for (const j of cached.jugadores) {
+      if (j.nombre.toUpperCase().includes(query)) {
+        results.push({ jugador: j, equipo: eq, stats: bateoMap[j.JugadorID] || {} });
+      }
+    }
+  }
+
+  dropdown.innerHTML = results.slice(0, 15).map(r =>
+    `<div class="p1v1-dropdown-item" onclick="select1v1Player('${side}', '${r.jugador.JugadorID}', '${r.jugador.nombre.replace(/'/g, "\\'")}', '${r.equipo.teamName.replace(/'/g, "\\'")}', '${r.equipo.InscripcionID}')">
+      ${r.equipo.foto ? '<img src="' + logoUrl(r.equipo.foto) + '" style="width:20px;height:20px;border-radius:50%;" onerror="this.style.display=\'none\'">' : ''}
+      <span>${r.jugador.nombre}</span>
+      <span class="equipo-grupo-pill">${r.equipo.teamName}</span>
+    </div>`
+  ).join('') || '<div style="padding:.5rem;font-size:.8rem;color:var(--text-dim)">No encontrado</div>';
+}
+
+function select1v1Player(side, jugadorID, nombre, teamName, inscripcionID) {
+  p1v1Selected[side] = { jugadorID, nombre, teamName, inscripcionID };
+  document.getElementById('p1v1-search-' + side).value = nombre;
+  document.getElementById('p1v1-results-' + side).innerHTML = '';
+  document.getElementById('p1v1-selected-' + side).textContent = '✓ ' + nombre + ' (' + teamName + ')';
+}
+
+function compare1v1() {
+  const pA = p1v1Selected.a;
+  const pB = p1v1Selected.b;
+  if (!pA || !pB) {
+    document.getElementById('p1v1-results').innerHTML = '<div class="empty-state"><p>Selecciona ambos jugadores para comparar</p></div>';
+    return;
+  }
+  if (pA.jugadorID === pB.jugadorID) {
+    document.getElementById('p1v1-results').innerHTML = '<div class="empty-state"><p>Selecciona dos jugadores diferentes</p></div>';
+    return;
+  }
+
+  function getPlayerStats(selected) {
+    const cached = state.playerCache[selected.inscripcionID];
+    if (!cached) return {};
+    const bateoMap = {};
+    (cached.bateo || []).forEach(b => { b.SLG = calcSLG(b); bateoMap[b.JugadorID] = b; });
+    return bateoMap[selected.jugadorID] || {};
+  }
+
+  const sA = getPlayerStats(pA);
+  const sB = getPlayerStats(pB);
+
+  const stats = [
+    { label: 'AVG', a: parseFloat(sA.PCT) || 0, b: parseFloat(sB.PCT) || 0, fmt: v => v.toFixed(3) },
+    { label: 'SLG', a: parseFloat(sA.SLG || calcSLG(sA)) || 0, b: parseFloat(sB.SLG || calcSLG(sB)) || 0, fmt: v => v.toFixed(3) },
+    { label: 'ISO', a: parseFloat(calcISO(sA)) || 0, b: parseFloat(calcISO(sB)) || 0, fmt: v => v.toFixed(3) },
+    { label: 'H', a: parseInt(sA.H) || 0, b: parseInt(sB.H) || 0, fmt: v => v },
+    { label: 'H2', a: parseInt(sA.H2) || 0, b: parseInt(sB.H2) || 0, fmt: v => v },
+    { label: 'H3', a: parseInt(sA.H3) || 0, b: parseInt(sB.H3) || 0, fmt: v => v },
+    { label: 'HR', a: parseInt(sA.HR) || 0, b: parseInt(sB.HR) || 0, fmt: v => v },
+    { label: 'R', a: parseInt(sA.R) || 0, b: parseInt(sB.R) || 0, fmt: v => v },
+  ];
+
+  const statRows = stats.map(s => {
+    const aWin = s.a > s.b ? 'winner' : s.a < s.b ? 'loser' : '';
+    const bWin = s.b > s.a ? 'winner' : s.b < s.a ? 'loser' : '';
+    return `
+      <div class="p1v1-stat-row">
+        <div class="p1v1-stat-val ${aWin}">${s.fmt(s.a)}</div>
+        <div class="p1v1-stat-label">${s.label}</div>
+        <div class="p1v1-stat-val ${bWin}">${s.fmt(s.b)}</div>
+      </div>`;
+  }).join('');
+
+  const radarSVG = render1v1Radar(stats, pA.nombre, pB.nombre);
+
+  const container = document.getElementById('p1v1-results');
+  container.innerHTML = `
+    <div class="p1v1-comparison">
+      <div class="p1v1-header">
+        <div class="p1v1-player-card">
+          <div class="p1v1-player-name">${pA.nombre}</div>
+          <div class="p1v1-player-team">${pA.teamName}</div>
+        </div>
+        <div class="p1v1-vs-badge">VS</div>
+        <div class="p1v1-player-card">
+          <div class="p1v1-player-name">${pB.nombre}</div>
+          <div class="p1v1-player-team">${pB.teamName}</div>
+        </div>
+      </div>
+      <div class="p1v1-radar-container">${radarSVG}</div>
+      <div class="section-header"><h2>Comparación detallada</h2></div>
+      <div style="display:flex;gap:1.5rem;margin-bottom:1rem;font-size:.8rem;">
+        <span style="color:var(--primary);font-weight:700;">■ ${pA.nombre.split(' ').slice(-1)[0]}</span>
+        <span style="color:var(--accent);font-weight:700;">■ ${pB.nombre.split(' ').slice(-1)[0]}</span>
+      </div>
+      ${statRows}
+    </div>`;
+}
+
+function render1v1Radar(stats, nameA, nameB) {
+  const radarStats = stats.filter(s => ['AVG','SLG','ISO','H','HR','R'].includes(s.label));
+  const n = radarStats.length;
+  const cx = 150, cy = 150, r = 110;
+  const angleStep = (2 * Math.PI) / n;
+
+  function getPoints(values) {
+    return values.map((v, i) => {
+      const angle = angleStep * i - Math.PI / 2;
+      return { x: cx + r * v * Math.cos(angle), y: cy + r * v * Math.sin(angle) };
+    });
+  }
+
+  const maxVals = radarStats.map(s => Math.max(s.a, s.b, 0.001));
+  const normA = radarStats.map((s, i) => s.a / maxVals[i]);
+  const normB = radarStats.map((s, i) => s.b / maxVals[i]);
+  const ptsA = getPoints(normA);
+  const ptsB = getPoints(normB);
+
+  const gridLines = [0.25, 0.5, 0.75, 1].map(level => {
+    const pts = Array.from({length: n}, (_, i) => {
+      const angle = angleStep * i - Math.PI / 2;
+      return `${cx + r * level * Math.cos(angle)},${cy + r * level * Math.sin(angle)}`;
+    });
+    return `<polygon points="${pts.join(' ')}" fill="none" stroke="var(--border)" stroke-width="0.5"/>`;
+  }).join('');
+
+  const axes = Array.from({length: n}, (_, i) => {
+    const angle = angleStep * i - Math.PI / 2;
+    const x2 = cx + r * Math.cos(angle);
+    const y2 = cy + r * Math.sin(angle);
+    return `<line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" stroke="var(--border)" stroke-width="0.5"/>`;
+  }).join('');
+
+  const labels = radarStats.map((s, i) => {
+    const angle = angleStep * i - Math.PI / 2;
+    const lx = cx + (r + 18) * Math.cos(angle);
+    const ly = cy + (r + 18) * Math.sin(angle);
+    return `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" fill="var(--text-muted)" font-size="10" font-weight="700">${s.label}</text>`;
+  }).join('');
+
+  const polyA = ptsA.map(p => `${p.x},${p.y}`).join(' ');
+  const polyB = ptsB.map(p => `${p.x},${p.y}`).join(' ');
+
+  return `<svg width="300" height="300" viewBox="0 0 300 300">
+    ${gridLines}${axes}
+    <polygon points="${polyA}" fill="rgba(34,197,94,.2)" stroke="#22c55e" stroke-width="2"/>
+    <polygon points="${polyB}" fill="rgba(245,158,11,.2)" stroke="#f59e0b" stroke-width="2"/>
+    ${ptsA.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3" fill="#22c55e"/>`).join('')}
+    ${ptsB.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3" fill="#f59e0b"/>`).join('')}
+    ${labels}
+  </svg>`;
+}
+
+// ══════════════════════════════════════════
+// FEATURE 2: WHATSAPP SHARE
+// ══════════════════════════════════════════
+
+function shareWhatsApp() {
+  const temporada = state.temporada ? state.temporada.Temporada : 'Temporada 108';
+  const msg = encodeURIComponent(`⚾ Tarjetón - Liga Infantil y Juvenil de Béisbol Yucatán - ${temporada} https://tarjeton.vercel.app/`);
+  window.open('https://wa.me/?text=' + msg, '_blank');
+}
+
+// ══════════════════════════════════════════
+// FEATURE 3: QR CODE
+// ══════════════════════════════════════════
+
+let qrGenerated = false;
+
+function showQRModal() {
+  const modal = document.getElementById('qr-modal');
+  modal.style.display = 'flex';
+  if (!qrGenerated) {
+    const container = document.getElementById('qr-code-container');
+    container.innerHTML = '';
+    if (typeof QRCode !== 'undefined') {
+      new QRCode(container, {
+        text: 'https://tarjeton.vercel.app/',
+        width: 200,
+        height: 200,
+        colorDark: '#14532d',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    } else {
+      container.innerHTML = '<p style="color:var(--text-dim);font-size:.8rem;">No se pudo cargar la librería QR</p>';
+    }
+    qrGenerated = true;
+  }
+}
+
+function closeQRModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('qr-modal').style.display = 'none';
+}
+
+// ══════════════════════════════════════════
+// FEATURE 4: PLAYOFF BRACKET
+// ══════════════════════════════════════════
+
+function populateBracketSelect() {
+  const sel = document.getElementById('bracket-cat');
+  if (!sel) return;
+  const cats = state.categorias.filter(c => c.CategoriaID !== '1');
+  sel.innerHTML = cats.map(c =>
+    `<option value="${c.CategoriaID}">${catShort(c).label} (${c.EdadMinima}-${c.EdadMaxima})</option>`
+  ).join('');
+}
+
+async function loadBracket() {
+  const catID = document.getElementById('bracket-cat').value;
+  if (!catID || !state.temporada) return;
+  const container = document.getElementById('bracket-container');
+  const loadingEl = document.getElementById('bracket-loading');
+  loadingEl.style.display = '';
+  container.innerHTML = '';
+
+  const grupos = await fetchStanding(state.temporada.TemporadaID, catID);
+  loadingEl.style.display = 'none';
+
+  if (!grupos || grupos.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🏆</div><p>No hay datos de posiciones para generar el bracket</p></div>';
+    return;
+  }
+
+  const semis = [];
+  const groupTeams = {};
+
+  for (const g of grupos) {
+    const sorted = [...g.equipos].sort((a, b) => parseFloat(b.points) - parseFloat(a.points));
+    groupTeams[g.clasificacion] = sorted;
+    if (sorted.length >= 2) {
+      semis.push({ grupo: g.clasificacion, seed1: sorted[0], seed2: sorted[1] });
+    } else if (sorted.length === 1) {
+      semis.push({ grupo: g.clasificacion, seed1: sorted[0], seed2: null });
+    }
+  }
+
+  if (semis.length === 0) {
+    container.innerHTML = '<div class="empty-state"><p>No hay suficientes equipos</p></div>';
+    return;
+  }
+
+  function renderBracketTeam(team, seed) {
+    if (!team) return `<div class="bracket-team"><span class="bracket-seed">-</span><span class="bracket-team-name" style="color:var(--text-dim)">TBD</span></div>`;
+    const img = logoUrl(team.foto);
+    return `<div class="bracket-team seed-${seed}">
+      <span class="bracket-seed">${seed}</span>
+      ${img ? `<img src="${img}" onerror="this.style.display='none'" alt="">` : ''}
+      <span class="bracket-team-name">${team.equipo}</span>
+      <span class="bracket-record">${team.wins}G-${team.loses}P</span>
+    </div>`;
+  }
+
+  let semiHTML = '';
+  const finalists = [];
+
+  for (const semi of semis) {
+    const winner = semi.seed1;
+    finalists.push(winner);
+    semiHTML += `
+      <div>
+        <div class="bracket-group-label">Grupo ${semi.grupo}</div>
+        <div class="bracket-match">
+          ${renderBracketTeam(semi.seed1, 1)}
+          ${renderBracketTeam(semi.seed2 || (groupTeams[semi.grupo] && groupTeams[semi.grupo][groupTeams[semi.grupo].length - 1]) || null, semis.length)}
+        </div>
+      </div>`;
+  }
+
+  let finalHTML = '';
+  if (finalists.length >= 2) {
+    const f1 = finalists[0];
+    const f2 = finalists[finalists.length - 1];
+    const champion = parseFloat(f1.points) >= parseFloat(f2.points) ? f1 : f2;
+    finalHTML = `
+      <div>
+        <div class="bracket-match">
+          ${renderBracketTeam(f1, 1)}
+          ${renderBracketTeam(f2, 2)}
+        </div>
+      </div>`;
+
+    const champImg = logoUrl(champion.foto);
+    var championHTML = `
+      <div style="text-align:center">
+        <div class="bracket-group-label">🏆 Campeón proyectado</div>
+        <div class="bracket-match" style="border-color:var(--gold);background:var(--accent-glow);">
+          ${renderBracketTeam(champion, '🏆')}
+        </div>
+      </div>`;
+  }
+
+  container.innerHTML = `
+    <div class="bracket-wrapper">
+      <div class="bracket">
+        <div class="bracket-round">
+          <div class="bracket-round-title">Semifinales</div>
+          ${semiHTML}
+        </div>
+        <div class="bracket-connector"></div>
+        <div class="bracket-round">
+          <div class="bracket-round-title">Final</div>
+          ${finalHTML}
+        </div>
+        <div class="bracket-connector"></div>
+        <div class="bracket-round">
+          <div class="bracket-round-title">Campeón</div>
+          ${championHTML || ''}
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:1rem;font-size:.72rem;color:var(--text-dim);text-align:center;">
+      * Bracket generado automáticamente basado en las posiciones actuales
+    </div>`;
+}
+
+// ══════════════════════════════════════════
+// FEATURE 5: MVP VOTING
+// ══════════════════════════════════════════
+
+function populateMVPSelect() {
+  const sel = document.getElementById('mvp-cat');
+  if (!sel) return;
+  const cats = state.categorias.filter(c => c.CategoriaID !== '1');
+  sel.innerHTML = cats.map(c =>
+    `<option value="${c.CategoriaID}">${catShort(c).label} (${c.EdadMinima}-${c.EdadMaxima})</option>`
+  ).join('');
+}
+
+function getMVPVotes(catID) {
+  try { return JSON.parse(localStorage.getItem('mvp_votes_' + catID) || '{}'); }
+  catch { return {}; }
+}
+
+function saveMVPVotes(catID, votes) {
+  localStorage.setItem('mvp_votes_' + catID, JSON.stringify(votes));
+}
+
+function getMyMVPVote(catID) {
+  return localStorage.getItem('mvp_my_vote_' + catID) || null;
+}
+
+async function loadMVPCandidates() {
+  const catID = document.getElementById('mvp-cat').value;
+  if (!catID) return;
+  const loadingEl = document.getElementById('mvp-loading');
+  const resultsEl = document.getElementById('mvp-results');
+  const rankingsEl = document.getElementById('mvp-rankings');
+
+  loadingEl.style.display = '';
+  resultsEl.innerHTML = '';
+  rankingsEl.innerHTML = '';
+
+  if (!state.playerCacheAll) {
+    await loadAllPlayers('mvp-loading');
+  }
+  loadingEl.style.display = 'none';
+
+  const candidates = [];
+  for (const eq of state.equiposEnriched) {
+    if (eq.categoriaID !== catID) continue;
+    const cached = state.playerCache[eq.InscripcionID];
+    if (!cached) continue;
+    const bateoMap = {};
+    (cached.bateo || []).forEach(b => { b.SLG = calcSLG(b); bateoMap[b.JugadorID] = b; });
+    for (const j of cached.jugadores) {
+      const stats = bateoMap[j.JugadorID];
+      if (stats && (parseFloat(stats.PCT) > 0 || parseInt(stats.HR) > 0)) {
+        candidates.push({ jugador: j, equipo: eq, stats });
+      }
+    }
+  }
+
+  candidates.sort((a, b) => (parseFloat(b.stats.PCT) || 0) - (parseFloat(a.stats.PCT) || 0));
+  const top = candidates.slice(0, 20);
+
+  const votes = getMVPVotes(catID);
+  const myVote = getMyMVPVote(catID);
+
+  const cards = top.map(c => {
+    const voteCount = votes[c.jugador.JugadorID] || 0;
+    const isVoted = myVote === c.jugador.JugadorID;
+    const img = logoUrl(c.equipo.foto);
+    return `
+      <div class="mvp-card">
+        ${img ? `<img src="${img}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border);" onerror="this.style.display='none'" alt="">` : ''}
+        <div class="mvp-card-info">
+          <div class="mvp-card-name">${c.jugador.nombre}</div>
+          <div class="mvp-card-team">${c.equipo.teamName} · ${c.equipo.catLabel}</div>
+          <div class="mvp-card-stats">AVG: ${c.stats.PCT} · HR: ${c.stats.HR || 0} · H: ${c.stats.H || 0}</div>
+        </div>
+        <div class="mvp-vote-count">${voteCount}</div>
+        <button class="mvp-vote-btn ${isVoted ? 'voted' : ''}" onclick="voteMVP('${catID}', '${c.jugador.JugadorID}', '${c.jugador.nombre.replace(/'/g, "\\'")}')">${isVoted ? '✓ Votado' : '🗳️ Votar'}</button>
+      </div>`;
+  }).join('');
+
+  resultsEl.innerHTML = top.length > 0
+    ? `<div class="mvp-grid">${cards}</div>`
+    : '<div class="empty-state"><p>No hay candidatos con estadísticas</p></div>';
+
+  renderMVPRankings(catID);
+}
+
+function voteMVP(catID, jugadorID, nombre) {
+  const myVote = getMyMVPVote(catID);
+  if (myVote) {
+    alert('Ya votaste en esta categoría. Solo puedes votar una vez.');
+    return;
+  }
+  const votes = getMVPVotes(catID);
+  votes[jugadorID] = (votes[jugadorID] || 0) + 1;
+  saveMVPVotes(catID, votes);
+  localStorage.setItem('mvp_my_vote_' + catID, jugadorID);
+  loadMVPCandidates();
+}
+
+function renderMVPRankings(catID) {
+  const votes = getMVPVotes(catID);
+  const entries = Object.entries(votes).filter(([_, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) return;
+
+  const rankingsEl = document.getElementById('mvp-rankings');
+  const rows = entries.slice(0, 10).map(([jID, count], i) => {
+    let name = jID;
+    for (const eq of state.equiposEnriched) {
+      const cached = state.playerCache[eq.InscripcionID];
+      if (!cached) continue;
+      const found = cached.jugadores.find(j => j.JugadorID === jID);
+      if (found) { name = found.nombre; break; }
+    }
+    const posClass = i < 3 ? ` p${i + 1}` : '';
+    return `
+      <div class="mvp-ranking-row">
+        <div class="mvp-ranking-pos${posClass}">${i + 1}</div>
+        <div class="mvp-ranking-info">
+          <div class="mvp-ranking-name">${name}</div>
+        </div>
+        <div class="mvp-ranking-votes">${count} votos</div>
+      </div>`;
+  }).join('');
+
+  rankingsEl.innerHTML = `
+    <div class="section-header"><h2>🏅 Ranking de Votos</h2></div>
+    <div class="leader-table-container">${rows}</div>`;
+}
+
+// ══════════════════════════════════════════
+// FEATURE 6: PLAYER TRENDS
+// ══════════════════════════════════════════
+
+let trendsSearchTimeout = null;
+
+function searchTrendsPlayer() {
+  clearTimeout(trendsSearchTimeout);
+  trendsSearchTimeout = setTimeout(doSearchTrendsPlayer, 350);
+}
+
+async function doSearchTrendsPlayer() {
+  const query = (document.getElementById('trends-search').value || '').trim();
+  const listEl = document.getElementById('trends-player-list');
+  const loadingEl = document.getElementById('trends-loading');
+  const chartEl = document.getElementById('trends-chart-container');
+
+  if (query.length < 3) {
+    listEl.innerHTML = query.length > 0 ? '<div class="empty-state"><p>Escribe al menos 3 caracteres</p></div>' : '';
+    return;
+  }
+
+  if (!state.playerCacheAll) {
+    loadingEl.style.display = '';
+    await loadAllPlayers('trends-loading');
+    loadingEl.style.display = 'none';
+  }
+
+  const queryUp = query.toUpperCase();
+  const results = [];
+  for (const eq of state.equiposEnriched) {
+    const cached = state.playerCache[eq.InscripcionID];
+    if (!cached) continue;
+    const bateoMap = {};
+    (cached.bateo || []).forEach(b => { b.SLG = calcSLG(b); bateoMap[b.JugadorID] = b; });
+    for (const j of cached.jugadores) {
+      if (j.nombre.toUpperCase().includes(queryUp)) {
+        results.push({ jugador: j, equipo: eq, stats: bateoMap[j.JugadorID] || {} });
+      }
+    }
+  }
+
+  if (results.length === 0) {
+    listEl.innerHTML = '<div class="empty-state"><p>No se encontraron jugadores</p></div>';
+    return;
+  }
+
+  listEl.innerHTML = `<div class="trends-player-list">${results.slice(0, 20).map(r => {
+    const img = logoUrl(r.equipo.foto);
+    return `<div class="trends-player-item" onclick="showPlayerTrends('${r.equipo.InscripcionID}', '${r.jugador.JugadorID}')">
+      ${img ? `<img src="${img}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:1px solid var(--border);" onerror="this.style.display='none'">` : ''}
+      <div style="flex:1;overflow:hidden">
+        <div style="font-weight:700;font-size:.88rem;">${r.jugador.nombre}</div>
+        <div style="font-size:.72rem;color:var(--text-muted);">${r.equipo.teamName} · ${r.equipo.catLabel}</div>
+      </div>
+      <span class="equipo-grupo-pill">${r.stats.PCT || '-'}</span>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function showPlayerTrends(inscripcionID, jugadorID) {
+  const chartEl = document.getElementById('trends-chart-container');
+  chartEl.style.display = '';
+
+  const eq = state.equiposEnriched.find(e => String(e.InscripcionID) === String(inscripcionID));
+  const cached = state.playerCache[inscripcionID];
+  if (!cached || !eq) { chartEl.innerHTML = '<div class="empty-state"><p>Sin datos</p></div>'; return; }
+
+  const jugador = cached.jugadores.find(j => j.JugadorID === jugadorID);
+  if (!jugador) { chartEl.innerHTML = ''; return; }
+
+  const bateoMap = {};
+  (cached.bateo || []).forEach(b => { b.SLG = calcSLG(b); bateoMap[b.JugadorID] = b; });
+  const stats = bateoMap[jugadorID] || {};
+
+  const catPlayers = [];
+  for (const e of state.equiposEnriched) {
+    if (e.categoriaID !== eq.categoriaID) continue;
+    const c = state.playerCache[e.InscripcionID];
+    if (!c) continue;
+    (c.bateo || []).forEach(b => {
+      b.SLG = calcSLG(b);
+      if (parseFloat(b.PCT) > 0) catPlayers.push(b);
+    });
+  }
+
+  function catAvg(key, parse) {
+    if (catPlayers.length === 0) return 0;
+    return catPlayers.reduce((s, p) => s + (parse(p[key]) || 0), 0) / catPlayers.length;
+  }
+
+  const metrics = [
+    { label: 'AVG', val: parseFloat(stats.PCT) || 0, avg: catAvg('PCT', parseFloat), max: 0.500 },
+    { label: 'SLG', val: parseFloat(stats.SLG || calcSLG(stats)) || 0, avg: catAvg('SLG', parseFloat), max: 0.800 },
+    { label: 'ISO', val: parseFloat(calcISO(stats)) || 0, avg: catAvg('PCT', v => { const s = catPlayers.find(p => p === stats); return 0; }), max: 0.500 },
+    { label: 'H', val: parseInt(stats.H) || 0, avg: catAvg('H', parseInt), max: Math.max(parseInt(stats.H) || 1, catAvg('H', parseInt) * 2, 10) },
+    { label: 'HR', val: parseInt(stats.HR) || 0, avg: catAvg('HR', parseInt), max: Math.max(parseInt(stats.HR) || 1, catAvg('HR', parseInt) * 2, 5) },
+    { label: 'R', val: parseInt(stats.R) || 0, avg: catAvg('R', parseInt), max: Math.max(parseInt(stats.R) || 1, catAvg('R', parseInt) * 2, 10) },
+  ];
+
+  const radarSVG = renderTrendsRadar(metrics);
+  const edad = calcularEdad(jugador.FechaNacimiento);
+
+  const statCards = metrics.map(m => {
+    const pct = m.max > 0 ? Math.min((m.val / m.max) * 100, 100) : 0;
+    const isFloat = m.label === 'AVG' || m.label === 'SLG' || m.label === 'ISO';
+    return `
+      <div class="trends-stat-card">
+        <div class="trends-stat-val">${isFloat ? m.val.toFixed(3) : m.val}</div>
+        <div class="trends-stat-label">${m.label}</div>
+        <div class="trends-stat-bar"><div class="trends-stat-bar-fill" style="width:${pct}%"></div></div>
+        <div style="font-size:.6rem;color:var(--text-dim);margin-top:.25rem;">Prom. cat: ${isFloat ? m.avg.toFixed(3) : m.avg.toFixed(1)}</div>
+      </div>`;
+  }).join('');
+
+  chartEl.innerHTML = `
+    <div class="trends-chart-card">
+      <div class="trends-chart-header">
+        <div>
+          <div class="trends-chart-title">${jugador.nombre}</div>
+          <div style="font-size:.82rem;color:var(--text-muted);">${eq.teamName} · ${eq.catLabel}${edad ? ' · ' + edad + ' años' : ''}</div>
+        </div>
+        <button class="btn btn-sm" onclick="document.getElementById('trends-chart-container').style.display='none'">✕ Cerrar</button>
+      </div>
+      <div class="radar-chart-container">${radarSVG}</div>
+      <div class="section-header"><h2>Estadísticas vs Promedio de Categoría</h2></div>
+      <div style="display:flex;gap:1.5rem;margin-bottom:1rem;font-size:.78rem;">
+        <span style="color:var(--primary);font-weight:700;">■ Jugador</span>
+        <span style="color:var(--text-dim);font-weight:700;">■ Promedio categoría</span>
+      </div>
+      <div class="trends-stats-grid">${statCards}</div>
+    </div>`;
+
+  chartEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderTrendsRadar(metrics) {
+  const n = metrics.length;
+  const cx = 150, cy = 150, r = 110;
+  const angleStep = (2 * Math.PI) / n;
+
+  function getPoints(values) {
+    return values.map((v, i) => {
+      const angle = angleStep * i - Math.PI / 2;
+      return { x: cx + r * v * Math.cos(angle), y: cy + r * v * Math.sin(angle) };
+    });
+  }
+
+  const normPlayer = metrics.map(m => m.max > 0 ? Math.min(m.val / m.max, 1) : 0);
+  const normAvg = metrics.map(m => m.max > 0 ? Math.min(m.avg / m.max, 1) : 0);
+
+  const ptsPlayer = getPoints(normPlayer);
+  const ptsAvg = getPoints(normAvg);
+
+  const gridLines = [0.25, 0.5, 0.75, 1].map(level => {
+    const pts = Array.from({length: n}, (_, i) => {
+      const angle = angleStep * i - Math.PI / 2;
+      return `${cx + r * level * Math.cos(angle)},${cy + r * level * Math.sin(angle)}`;
+    });
+    return `<polygon points="${pts.join(' ')}" fill="none" stroke="var(--border)" stroke-width="0.5"/>`;
+  }).join('');
+
+  const axes = Array.from({length: n}, (_, i) => {
+    const angle = angleStep * i - Math.PI / 2;
+    return `<line x1="${cx}" y1="${cy}" x2="${cx + r * Math.cos(angle)}" y2="${cy + r * Math.sin(angle)}" stroke="var(--border)" stroke-width="0.5"/>`;
+  }).join('');
+
+  const labels = metrics.map((m, i) => {
+    const angle = angleStep * i - Math.PI / 2;
+    return `<text x="${cx + (r + 18) * Math.cos(angle)}" y="${cy + (r + 18) * Math.sin(angle)}" text-anchor="middle" dominant-baseline="middle" fill="var(--text-muted)" font-size="10" font-weight="700">${m.label}</text>`;
+  }).join('');
+
+  const polyAvg = ptsAvg.map(p => `${p.x},${p.y}`).join(' ');
+  const polyPlayer = ptsPlayer.map(p => `${p.x},${p.y}`).join(' ');
+
+  return `<svg width="300" height="300" viewBox="0 0 300 300">
+    ${gridLines}${axes}
+    <polygon points="${polyAvg}" fill="rgba(148,163,184,.15)" stroke="var(--text-dim)" stroke-width="1.5" stroke-dasharray="4,3"/>
+    <polygon points="${polyPlayer}" fill="rgba(34,197,94,.25)" stroke="#22c55e" stroke-width="2.5"/>
+    ${ptsPlayer.map(p => `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#22c55e"/>`).join('')}
+    ${ptsAvg.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3" fill="var(--text-dim)"/>`).join('')}
+    ${labels}
+  </svg>`;
+}
+
+// ══════════════════════════════════════════
+// FEATURE 7: PRINT STANDINGS
+// ══════════════════════════════════════════
+
+function printStandings() {
+  const catID = document.getElementById('stand-cat').value;
+  if (!catID || !state.temporada) return;
+  const key = `${state.temporada.TemporadaID}_${catID}`;
+  let data = state.standingsCache[key];
+  if (!data || data.length === 0) { alert('Primero carga las posiciones'); return; }
+
+  if (state.standGrupo) {
+    data = data.filter(g => g.clasificacion === state.standGrupo);
+  }
+
+  const cat = state.categorias.find(c => c.CategoriaID === catID);
+  const catName = cat ? catShort(cat).label + ' ' + catShort(cat).ages : 'Posiciones';
+  const temporada = state.temporada ? state.temporada.Temporada : 'TEMPORADA 108';
+
+  const groupsHTML = data.map(group => {
+    const rows = group.equipos.map(eq => {
+      const img = logoUrl(eq.foto);
+      const pct = eq.points;
+      const posClass = eq.position <= 3 ? ` style="color:${eq.position === 1 ? '#fbbf24' : eq.position === 2 ? '#94a3b8' : '#d97706'};font-weight:900;"` : '';
+      return `<tr>
+        <td${posClass}>${eq.position}</td>
+        <td style="text-align:left;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            ${img ? `<img src="${img}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid #ccc;" onerror="this.style.display='none'">` : ''}
+            <span style="font-weight:700;">${eq.equipo}</span>
+          </div>
+        </td>
+        <td>${eq.wins}</td>
+        <td>${eq.loses}</td>
+        <td style="font-weight:800;">${pct}</td>
+      </tr>`;
+    }).join('');
+
+    return `
+      <div style="margin-bottom:24px;">
+        <div style="background:#14532d;color:#fff;padding:8px 16px;border-radius:8px 8px 0 0;font-weight:700;letter-spacing:1px;font-size:14px;">
+          GRUPO ${group.clasificacion} — ${group.equipos.length} equipos
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr>
+            <th style="background:#f8fafc;padding:8px 12px;text-align:center;font-size:11px;font-weight:700;color:#64748b;border-bottom:2px solid #e2e8f0;width:50px;">#</th>
+            <th style="background:#f8fafc;padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:2px solid #e2e8f0;">EQUIPO</th>
+            <th style="background:#f8fafc;padding:8px 12px;text-align:center;font-size:11px;font-weight:700;color:#22c55e;border-bottom:2px solid #e2e8f0;width:50px;">G</th>
+            <th style="background:#f8fafc;padding:8px 12px;text-align:center;font-size:11px;font-weight:700;color:#ef4444;border-bottom:2px solid #e2e8f0;width:50px;">P</th>
+            <th style="background:#f8fafc;padding:8px 12px;text-align:center;font-size:11px;font-weight:700;color:#f59e0b;border-bottom:2px solid #e2e8f0;width:70px;">PCT</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }).join('');
+
+  const fullHTML = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Posiciones - ${catName}</title>
+<style>
+@page { size: portrait; margin: 0.5in; }
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a2332; }
+table { border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px; overflow: hidden; }
+td { padding: 8px 12px; font-size: 13px; border-bottom: 1px solid #f1f5f9; text-align: center; }
+tr:nth-child(even) td { background: #f8fafc; }
+</style></head>
+<body>
+<div style="text-align:center;margin-bottom:24px;padding-top:16px;">
+  <div style="font-size:24px;font-weight:900;color:#14532d;letter-spacing:2px;">⚾ TARJETÓN</div>
+  <div style="font-size:14px;color:#64748b;margin-top:4px;">${temporada} — Tabla de Posiciones</div>
+  <div style="font-size:18px;font-weight:800;color:#1a2332;margin-top:8px;">${catName}</div>
+</div>
+${groupsHTML}
+<div style="text-align:center;margin-top:16px;font-size:11px;color:#94a3b8;">
+  Liga Infantil y Juvenil de Béisbol Yucatán A.C. · tarjeton.vercel.app
+</div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(fullHTML);
+  win.document.close();
+  setTimeout(() => win.print(), 500);
+}
+
+// ══════════════════════════════════════════
+
 loadTheme();
 updateOnlineStatus();
 
@@ -2305,6 +3057,9 @@ navigateTo = function(section) {
   _originalNavigateTo(section);
   if (section === 'prediccion') populatePredictionSelects();
   if (section === 'admin' && adminAuthenticated) initAdminPanel();
+  if (section === 'eliminatorias') { populateBracketSelect(); loadBracket(); }
+  if (section === 'mvp') { populateMVPSelect(); loadMVPCandidates(); }
+  if (section === 'comparar') { /* also handled by original */ }
 };
 
 // Apply admin season name on load
