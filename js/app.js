@@ -2689,16 +2689,21 @@ async function loadMVPCandidates() {
   }
   loadingEl.style.display = 'none';
 
+  if (state.equiposEnriched.length === 0) {
+    resultsEl.innerHTML = '<div class="empty-state"><div class="inline-spinner"></div> Cargando equipos, espera unos segundos y vuelve a intentar...</div>';
+    return;
+  }
+
   const candidates = [];
   for (const eq of state.equiposEnriched) {
-    if (eq.categoriaID !== catID) continue;
+    if (String(eq.categoriaID) !== String(catID)) continue;
     const cached = state.playerCache[eq.InscripcionID];
     if (!cached) continue;
     const bateoMap = {};
     (cached.bateo || []).forEach(b => { b.SLG = calcSLG(b); bateoMap[b.JugadorID] = b; });
     for (const j of cached.jugadores) {
       const stats = bateoMap[j.JugadorID];
-      if (stats && (parseFloat(stats.PCT) > 0 || parseInt(stats.HR) > 0)) {
+      if (stats && (parseInt(stats.VB) > 0 || parseInt(stats.H) > 0 || parseInt(stats.HR) > 0)) {
         candidates.push({ jugador: j, equipo: eq, stats });
       }
     }
