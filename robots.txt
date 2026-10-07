@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tarjeton.vercel.app/sitemap.xml
