@@ -156,11 +156,10 @@ function renderJugadorRow(j, idx, stats) {
   const edadStr = edad !== null ? `${edad} años` : '';
   const s = stats || {};
   const hasStats = !!s.PCT;
-  const cardBtn = hasStats ? `<button class="btn-ver-tarjeta" onclick="event.stopPropagation();openBaseballCard('${j.JugadorID}','${(j.nombre||'').replace(/'/g,"\\'")}',${edad||0})">🃏 Tarjeta</button>` : '';
   return `
     <tr>
       <td class="jugador-num">${idx + 1}</td>
-      <td class="jugador-nombre">${state.currentEquipo && state.currentEquipo.foto ? '<img class="roster-team-logo" src="' + logoUrl(state.currentEquipo.foto) + '" onerror="this.style.display=\'none\'" alt="">' : ''}${j.nombre} ${cardBtn}</td>
+      <td class="jugador-nombre">${state.currentEquipo && state.currentEquipo.foto ? '<img class="roster-team-logo" src="' + logoUrl(state.currentEquipo.foto) + '" onerror="this.style.display=\'none\'" alt="">' : ''}${j.nombre}</td>
       <td class="jugador-edad">${edadStr}</td>
       <td class="jugador-stat">${hasStats ? s.PCT : '-'}</td>
       <td class="jugador-stat">${hasStats ? calcISO(s) : '-'}</td>
@@ -3093,6 +3092,43 @@ applyAdminSeasonName();
 // ══════════════════════════════════════════
 // FEATURE 1: PLAYER BASEBALL CARD
 // ══════════════════════════════════════════
+
+function abrirSelectorTarjeta() {
+  const eq = state.currentEquipo;
+  if (!eq || !eq._jugadores) return;
+  const jugadores = eq._jugadores;
+  const opts = jugadores.map(j => {
+    const edad = calcularEdad(j.FechaNacimiento) || '';
+    return `<option value="${j.JugadorID}" data-nombre="${(j.nombre||'').replace(/"/g,'&quot;')}" data-edad="${edad}">${j.nombre}${edad ? ' (' + edad + ' años)' : ''}</option>`;
+  }).join('');
+  const modal = document.createElement('div');
+  modal.className = 'baseball-card-overlay';
+  modal.innerHTML = `
+    <div style="background:var(--bg-secondary);border-radius:12px;padding:24px;max-width:400px;width:90%;text-align:center;">
+      <h3 style="margin-bottom:16px;color:var(--accent);">🃏 Sacar Tarjeta de Jugador</h3>
+      <select id="sel-tarjeta-jugador" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:1rem;margin-bottom:16px;">
+        <option value="">-- Selecciona un jugador --</option>
+        ${opts}
+      </select>
+      <div style="display:flex;gap:8px;justify-content:center;">
+        <button class="btn btn-primary" onclick="generarTarjetaSeleccionada()">🃏 Generar Tarjeta</button>
+        <button class="btn btn-secondary" onclick="this.closest('.baseball-card-overlay').remove()">Cancelar</button>
+      </div>
+    </div>`;
+  modal.onclick = e => { if (e.target === modal) modal.remove(); };
+  document.body.appendChild(modal);
+}
+
+function generarTarjetaSeleccionada() {
+  const sel = document.getElementById('sel-tarjeta-jugador');
+  if (!sel || !sel.value) { alert('Selecciona un jugador'); return; }
+  const opt = sel.options[sel.selectedIndex];
+  const jugadorID = sel.value;
+  const nombre = opt.dataset.nombre;
+  const edad = parseInt(opt.dataset.edad) || 0;
+  document.querySelector('.baseball-card-overlay').remove();
+  openBaseballCard(jugadorID, nombre, edad);
+}
 
 function openBaseballCard(jugadorID, nombre, edad) {
   const eq = state.currentEquipo;
