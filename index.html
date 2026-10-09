@@ -68,7 +68,9 @@
       <div class="nav-right-controls">
         <button class="btn-install" id="installBtn" style="display:none" onclick="installApp()">📲 Instalar App</button>
         <span class="offline-badge" id="offlineIndicator" style="display:none">📡 Sin conexión</span>
+        <button class="btn-mi-equipo" id="btnMiEquipo" style="display:none" onclick="goToFavTeam()" title="Mi Equipo">⭐ Mi Equipo</button>
         <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Cambiar tema">🌙</button>
+        <button class="profile-icon-btn" id="profileIconBtn" onclick="openProfileModal()" title="Perfil">👤</button>
       </div>
       <button class="nav-toggle" onclick="toggleMenu()" aria-label="Menu">
         <span></span><span></span><span></span>
@@ -87,6 +89,7 @@
         <li><a href="#" class="nav-link" data-section="eliminatorias" onclick="navigateTo('eliminatorias')">Eliminatorias</a></li>
         <li><a href="#" class="nav-link" data-section="mvp" onclick="navigateTo('mvp')">MVP</a></li>
         <li><a href="#" class="nav-link" data-section="tendencias" onclick="navigateTo('tendencias')">Tendencias</a></li>
+        <li id="nav-coach-li" style="display:none"><a href="#" class="nav-link" data-section="coach" onclick="navigateTo('coach')">🧑‍🏫 Coach</a></li>
         <li><a href="#" class="nav-link" data-section="admin" onclick="navigateTo('admin')">🔒 Admin</a></li>
       </ul>
     </div>
@@ -95,6 +98,8 @@
   <main id="app">
     <!-- INICIO -->
     <section id="sec-inicio" class="section active">
+      <div id="user-greeting-bar" class="user-greeting-bar" style="display:none"></div>
+      <div id="fav-team-banner" class="fav-team-banner" style="display:none"></div>
       <div class="hero">
         <div class="hero-particles" id="heroParticles"></div>
         <div class="hero-content">
@@ -445,6 +450,50 @@
       </div>
     </section>
 
+    <!-- COACH TOOLS -->
+    <section id="sec-coach" class="section">
+      <div class="container">
+        <div class="section-header">
+          <h2>🧑‍🏫 Herramientas de Coach</h2>
+        </div>
+        <div class="filters">
+          <div class="filter-group">
+            <label>Equipo</label>
+            <select id="coach-team-select" onchange="onCoachTeamChange()"></select>
+          </div>
+        </div>
+        <div class="coach-tabs">
+          <button class="pill active" onclick="switchCoachTab('lineup')">⚾ Lineup</button>
+          <button class="pill" onclick="switchCoachTab('rotation')">🏋️ Rotación Pitcheo</button>
+          <button class="pill" onclick="switchCoachTab('notes')">📝 Notas</button>
+        </div>
+        <div id="coach-tab-lineup" class="coach-tab-content active">
+          <div class="section-header" style="margin-top:1rem"><h2>Alineación (1-9)</h2></div>
+          <div id="coach-lineup-list" class="coach-lineup-list"></div>
+          <div id="coach-lineup-empty" class="empty-state" style="display:none">
+            <div class="empty-icon">⚾</div>
+            <p>Selecciona un equipo para armar tu alineación</p>
+          </div>
+        </div>
+        <div id="coach-tab-rotation" class="coach-tab-content">
+          <div class="section-header" style="margin-top:1rem"><h2>Rotación de Pitcheo</h2></div>
+          <div id="coach-rotation-list" class="coach-lineup-list"></div>
+          <div id="coach-rotation-empty" class="empty-state" style="display:none">
+            <div class="empty-icon">🏋️</div>
+            <p>Selecciona un equipo para armar la rotación</p>
+          </div>
+        </div>
+        <div id="coach-tab-notes" class="coach-tab-content">
+          <div class="section-header" style="margin-top:1rem"><h2>Notas del Juego</h2></div>
+          <div class="coach-notes-box">
+            <textarea id="coach-notes-area" rows="8" placeholder="Escribe notas de juego, estrategias, observaciones..."></textarea>
+            <button class="btn btn-primary" onclick="saveCoachNotes()" style="margin-top:.75rem">💾 Guardar Notas</button>
+            <p id="coach-notes-saved" class="admin-success" style="display:none">✅ Notas guardadas</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ADMIN -->
     <section id="sec-admin" class="section">
       <div class="container">
@@ -515,6 +564,54 @@
       </div>
     </section>
   </main>
+
+  <!-- BASEBALL CARD MODAL -->
+  <div class="modal-overlay" id="baseball-card-modal" style="display:none" onclick="closeBaseballCard(event)">
+    <div class="modal-content baseball-card-modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>🃏 Tarjeta de Jugador</h3>
+        <div>
+          <button class="btn btn-primary btn-sm" onclick="downloadBaseballCard()">📥 Descargar</button>
+          <button class="btn btn-sm" onclick="closeBaseballCard()" style="margin-left:.5rem">✕</button>
+        </div>
+      </div>
+      <div id="baseball-card-content"></div>
+    </div>
+  </div>
+
+  <!-- PROFILE MODAL -->
+  <div class="modal-overlay" id="profile-modal" style="display:none" onclick="closeProfileModal(event)">
+    <div class="modal-content profile-modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>👤 Mi Perfil</h3>
+        <button class="btn btn-sm" onclick="closeProfileModal()">✕</button>
+      </div>
+      <div class="profile-form">
+        <div class="admin-field">
+          <label>Nombre</label>
+          <input type="text" id="profile-name" placeholder="Tu nombre...">
+        </div>
+        <div class="admin-field">
+          <label>Rol</label>
+          <select id="profile-role">
+            <option value="">Seleccionar...</option>
+            <option value="Padre">Padre</option>
+            <option value="Coach">Coach</option>
+            <option value="Jugador">Jugador</option>
+            <option value="Aficionado">Aficionado</option>
+          </select>
+        </div>
+        <div class="admin-field">
+          <label>Equipo Favorito</label>
+          <select id="profile-fav-team">
+            <option value="">Ninguno</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="saveProfile()" style="width:100%">💾 Guardar Perfil</button>
+        <p id="profile-saved-msg" class="admin-success" style="display:none">✅ Perfil guardado</p>
+      </div>
+    </div>
+  </div>
 
   <footer class="footer">
     <div class="container">

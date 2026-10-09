@@ -156,10 +156,11 @@ function renderJugadorRow(j, idx, stats) {
   const edadStr = edad !== null ? `${edad} años` : '';
   const s = stats || {};
   const hasStats = !!s.PCT;
+  const cardBtn = hasStats ? `<button class="btn-ver-tarjeta" onclick="event.stopPropagation();openBaseballCard('${j.JugadorID}','${(j.nombre||'').replace(/'/g,"\\'")}',${edad||0})">🃏 Tarjeta</button>` : '';
   return `
     <tr>
       <td class="jugador-num">${idx + 1}</td>
-      <td class="jugador-nombre">${state.currentEquipo && state.currentEquipo.foto ? '<img class="roster-team-logo" src="' + logoUrl(state.currentEquipo.foto) + '" onerror="this.style.display=\'none\'" alt="">' : ''}${j.nombre}</td>
+      <td class="jugador-nombre">${state.currentEquipo && state.currentEquipo.foto ? '<img class="roster-team-logo" src="' + logoUrl(state.currentEquipo.foto) + '" onerror="this.style.display=\'none\'" alt="">' : ''}${j.nombre} ${cardBtn}</td>
       <td class="jugador-edad">${edadStr}</td>
       <td class="jugador-stat">${hasStats ? s.PCT : '-'}</td>
       <td class="jugador-stat">${hasStats ? calcISO(s) : '-'}</td>
@@ -745,6 +746,8 @@ function renderCatCard(cat) {
 function renderEquipoCard(eq) {
   const img = logoUrl(eq.foto);
   const record = eq.wins != null ? `${eq.wins}-${eq.loses}` : '';
+  const favId = localStorage.getItem('fav_team');
+  const isFav = favId === eq.InscripcionID;
   return `
     <div class="equipo-card" onclick="openEquipoDetail('${eq.InscripcionID}')">
       ${img ? `<img src="${img}" alt="" onerror="this.src=''; this.style.display='none'">` : ''}
@@ -755,6 +758,7 @@ function renderEquipoCard(eq) {
         </div>
       </div>
       ${record ? `<div class="equipo-card-record">${record}</div>` : ''}
+      <button class="fav-star ${isFav ? 'active' : ''}" onclick="event.stopPropagation();toggleFavTeam('${eq.InscripcionID}')" title="Equipo favorito">${isFav ? '⭐' : '☆'}</button>
     </div>`;
 }
 
@@ -783,6 +787,7 @@ function navigateTo(section) {
     document.querySelector('#sec-equipos .filters').style.display = '';
     filterEquipos();
   }
+  if (section === 'coach') loadCoachSection();
 }
 
 function toggleMenu() {
@@ -1277,9 +1282,11 @@ function renderPlayerResults(results, container) {
   const rows = results.slice(0, 150).map(r => {
     const edad = calcularEdad(r.jugador.FechaNacimiento);
     const s = r.stats || {};
+    const hasSt = !!s.PCT;
+    const cardBtn = hasSt ? `<button class="btn-ver-tarjeta" onclick="event.stopPropagation();openBaseballCardSearch('${r.jugador.JugadorID}','${(r.jugador.nombre||'').replace(/'/g,"\\'")}',${edad||0},'${r.equipo.InscripcionID}')">🃏</button>` : '';
     return `
       <tr onclick="openEquipoByName('${r.equipo.teamName.replace(/'/g, "\\'")}', '${r.equipo.categoriaID}')" style="cursor:pointer">
-        <td class="jugador-nombre">${r.jugador.nombre}</td>
+        <td class="jugador-nombre">${r.jugador.nombre} ${cardBtn}</td>
         <td>${r.equipo.foto ? '<img class="roster-team-logo" src="' + logoUrl(r.equipo.foto) + '" onerror="this.style.display=\'none\'" alt="">' : ''}${r.equipo.teamName}</td>
         <td><span class="equipo-grupo-pill">${r.equipo.catLabel}</span></td>
         <td class="jugador-edad">${edad ? edad + ' años' : ''}</td>
@@ -1440,6 +1447,9 @@ async function init() {
     state.equipos = equipos;
 
     await enrichEquipos();
+    loadUserProfile();
+    renderFavTeamBanner();
+    updateCoachNavVisibility();
   } catch (err) {
     console.error('Init error:', err);
   } finally {
@@ -3079,6 +3089,466 @@ function applyAdminSeasonName() {
 }
 
 applyAdminSeasonName();
+
+// ══════════════════════════════════════════
+// FEATURE 1: PLAYER BASEBALL CARD
+// ══════════════════════════════════════════
+
+function openBaseballCard(jugadorID, nombre, edad) {
+  const eq = state.currentEquipo;
+  if (!eq) return;
+  const cached = state.playerCache[eq.InscripcionID] || { bateo: [] };
+  const bateoMap = {};
+  (cached.bateo || []).forEach(b => { b.SLG = calcSLG(b); bateoMap[b.JugadorID] = b; });
+  const stats = bateoMap[jugadorID] || {};
+  renderBaseballCard(nombre, edad, stats, eq);
+}
+
+function openBaseballCardSearch(jugadorID, nombre, edad, inscripcionID) {
+  const eq = state.equiposEnriched.find(e => e.InscripcionID === inscripcionID);
+  if (!eq) return;
+  const cached = state.playerCache[inscripcionID] || { bateo: [] };
+  const bateoMap = {};
+  (cached.bateo || []).forEach(b => { b.SLG = calcSLG(b); bateoMap[b.JugadorID] = b; });
+  const stats = bateoMap[jugadorID] || {};
+  renderBaseballCard(nombre, edad, stats, eq);
+}
+
+function renderBaseballCard(nombre, edad, s, eq) {
+  const img = logoUrl(eq.foto);
+  const avg = s.PCT || '.000';
+  const slg = s.SLG || calcSLG(s);
+  const iso = calcISO(s);
+  const pitch = recPitcheo(s, edad);
+  const html = `
+    <div class="baseball-card" id="bc-printable">
+      <div class="bc-header">
+        ${img ? `<img class="bc-team-logo" src="${img}" alt="" onerror="this.style.display='none'">` : ''}
+        <div class="bc-player-name">${nombre}</div>
+        <div class="bc-team-name">${eq.teamName} · ${eq.catLabel || ''}</div>
+        <div class="bc-meta">
+          ${edad ? `<span>🎂 ${edad} años</span>` : ''}
+          <span>📊 ${eq.grupo}</span>
+          <span>🏟️ ${eq.wins || 0}-${eq.loses || 0}</span>
+        </div>
+      </div>
+      <div class="bc-body">
+        <div class="bc-stats-grid">
+          <div class="bc-stat"><div class="bc-stat-val">${avg}</div><div class="bc-stat-label">AVG</div></div>
+          <div class="bc-stat"><div class="bc-stat-val">${parseFloat(slg).toFixed(3)}</div><div class="bc-stat-label">SLG</div></div>
+          <div class="bc-stat"><div class="bc-stat-val">${iso}</div><div class="bc-stat-label">ISO</div></div>
+          <div class="bc-stat"><div class="bc-stat-val">${s.H || 0}</div><div class="bc-stat-label">H</div></div>
+          <div class="bc-stat"><div class="bc-stat-val">${s.H2 || 0}</div><div class="bc-stat-label">2B</div></div>
+          <div class="bc-stat"><div class="bc-stat-val">${s.H3 || 0}</div><div class="bc-stat-label">3B</div></div>
+          <div class="bc-stat"><div class="bc-stat-val">${s.HR || 0}</div><div class="bc-stat-label">HR</div></div>
+          <div class="bc-stat"><div class="bc-stat-val">${s.R || 0}</div><div class="bc-stat-label">R</div></div>
+        </div>
+        <div class="bc-pitch-rec">
+          <div class="bc-pitch-label">Recomendación Pitcheo</div>
+          <div class="bc-pitch-val">${pitch}</div>
+        </div>
+      </div>
+      <div class="bc-footer">TARJETÓN · LIGA INFANTIL Y JUVENIL DE BÉISBOL YUCATÁN · TEMPORADA 108</div>
+    </div>`;
+  document.getElementById('baseball-card-content').innerHTML = html;
+  document.getElementById('baseball-card-modal').style.display = '';
+}
+
+function closeBaseballCard(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('baseball-card-modal').style.display = 'none';
+}
+
+function downloadBaseballCard() {
+  const card = document.getElementById('bc-printable');
+  if (!card) return;
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>Tarjeta de Jugador</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <style>
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { font-family:'Inter',sans-serif; background:#0b1118; display:flex; align-items:center; justify-content:center; min-height:100vh; padding:2rem; }
+      :root { --bg-surface:#111922; --border:#1e2d3d; --text:#e8edf2; --text-muted:#7a8fa3; --text-dim:#4a5d70;
+        --primary:#22c55e; --accent:#f59e0b; --radius:12px; --radius-sm:8px; --primary-glow:rgba(34,197,94,.15); }
+      .baseball-card { max-width:400px; width:100%; border-radius:var(--radius); overflow:hidden;
+        background:linear-gradient(145deg,#1a2636 0%,#0b1118 50%,#1a2636 100%);
+        border:3px solid var(--accent); box-shadow:0 8px 40px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.05); position:relative; }
+      .baseball-card::before { content:''; position:absolute; inset:4px; border:1px solid rgba(245,158,11,.2);
+        border-radius:calc(var(--radius)-2px); pointer-events:none; z-index:1; }
+      .bc-header { padding:1.5rem 1.25rem 1rem; background:linear-gradient(135deg,rgba(34,197,94,.15),rgba(245,158,11,.1));
+        text-align:center; position:relative; }
+      .bc-team-logo { width:56px; height:56px; border-radius:50%; object-fit:cover; border:3px solid var(--accent);
+        margin-bottom:.5rem; background:var(--bg-surface); }
+      .bc-player-name { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; letter-spacing:1px; line-height:1.1;
+        background:linear-gradient(135deg,#fff,var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+      .bc-team-name { font-size:.78rem; color:var(--text-muted); margin-top:.15rem; }
+      .bc-meta { display:flex; justify-content:center; gap:1rem; margin-top:.5rem; font-size:.72rem; color:var(--text-dim); }
+      .bc-meta span { display:flex; align-items:center; gap:.25rem; }
+      .bc-body { padding:1rem 1.25rem 1.25rem; }
+      .bc-stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.5rem; margin-bottom:.75rem; }
+      .bc-stat { text-align:center; padding:.5rem .25rem; background:var(--bg-surface); border-radius:var(--radius-sm);
+        border:1px solid var(--border); }
+      .bc-stat-val { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; color:var(--primary); line-height:1; }
+      .bc-stat-label { font-size:.55rem; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px; margin-top:.15rem; }
+      .bc-pitch-rec { text-align:center; padding:.6rem; background:linear-gradient(135deg,rgba(245,158,11,.08),rgba(34,197,94,.08));
+        border-radius:var(--radius-sm); border:1px solid rgba(245,158,11,.15); }
+      .bc-pitch-label { font-size:.6rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:.25rem; }
+      .bc-pitch-val { font-family:'Bebas Neue',sans-serif; font-size:1.3rem; color:var(--accent); letter-spacing:2px; }
+      .bc-footer { text-align:center; padding:.5rem; font-size:.55rem; color:var(--text-dim); letter-spacing:1px;
+        border-top:1px solid var(--border); }
+      @media print { body { background:#fff; } }
+    </style>
+  </head><body>${card.outerHTML}</body></html>`);
+  win.document.close();
+}
+
+// ══════════════════════════════════════════
+// FEATURE 2: COACH TOOLS
+// ══════════════════════════════════════════
+
+function loadCoachSection() {
+  const sel = document.getElementById('coach-team-select');
+  sel.innerHTML = '<option value="">Seleccionar equipo...</option>' +
+    state.equiposEnriched.map(eq =>
+      `<option value="${eq.InscripcionID}">${eq.teamName} (${eq.catLabel})</option>`
+    ).join('');
+  const profile = JSON.parse(localStorage.getItem('user_profile') || '{}');
+  if (profile.favTeam) sel.value = profile.favTeam;
+  onCoachTeamChange();
+}
+
+function switchCoachTab(tab) {
+  document.querySelectorAll('.coach-tab-content').forEach(el => el.classList.remove('active'));
+  document.getElementById('coach-tab-' + tab).classList.add('active');
+  document.querySelectorAll('.coach-tabs .pill').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function onCoachTeamChange() {
+  const inscID = document.getElementById('coach-team-select').value;
+  if (!inscID) {
+    document.getElementById('coach-lineup-list').innerHTML = '';
+    document.getElementById('coach-lineup-empty').style.display = '';
+    document.getElementById('coach-rotation-list').innerHTML = '';
+    document.getElementById('coach-rotation-empty').style.display = '';
+    document.getElementById('coach-notes-area').value = '';
+    return;
+  }
+  document.getElementById('coach-lineup-empty').style.display = 'none';
+  document.getElementById('coach-rotation-empty').style.display = 'none';
+  loadCoachLineup(inscID);
+  loadCoachRotation(inscID);
+  loadCoachNotes(inscID);
+}
+
+function getCoachPlayers(inscID) {
+  const cached = state.playerCache[inscID];
+  if (!cached) return [];
+  const bateoMap = {};
+  (cached.bateo || []).forEach(b => { b.SLG = calcSLG(b); bateoMap[b.JugadorID] = b; });
+  return cached.jugadores.map(j => ({
+    id: j.JugadorID,
+    nombre: j.nombre,
+    edad: calcularEdad(j.FechaNacimiento),
+    stats: bateoMap[j.JugadorID] || {}
+  }));
+}
+
+function loadCoachLineup(inscID) {
+  const players = getCoachPlayers(inscID);
+  if (players.length === 0) {
+    loadCoachPlayersAndRetry(inscID, 'lineup');
+    return;
+  }
+  const savedKey = `coach_lineup_${inscID}`;
+  let order = JSON.parse(localStorage.getItem(savedKey) || 'null');
+  if (!order || order.length === 0) {
+    order = players.slice(0, 9).map(p => p.id);
+  }
+  const ordered = order.map(id => players.find(p => p.id === id)).filter(Boolean);
+  const remaining = players.filter(p => !order.includes(p.id));
+  const addSelect = remaining.length > 0 ? `
+    <div class="coach-add-player">
+      <select id="coach-lineup-add-select">
+        <option value="">Agregar jugador...</option>
+        ${remaining.map(p => `<option value="${p.id}">${p.nombre} (AVG: ${p.stats.PCT || '-'})</option>`).join('')}
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="addToCoachLineup('${inscID}')">+ Agregar</button>
+    </div>` : '';
+  document.getElementById('coach-lineup-list').innerHTML = addSelect +
+    ordered.map((p, i) => renderCoachLineupItem(p, i, ordered.length, inscID, 'lineup')).join('');
+}
+
+function loadCoachRotation(inscID) {
+  const players = getCoachPlayers(inscID);
+  if (players.length === 0) {
+    loadCoachPlayersAndRetry(inscID, 'rotation');
+    return;
+  }
+  const cached = state.playerCache[inscID];
+  const pitcheoMap = {};
+  if (cached && cached.pitcheo) {
+    cached.pitcheo.forEach(p => { pitcheoMap[p.JugadorID] = p; });
+  }
+  const savedKey = `coach_rotation_${inscID}`;
+  let order = JSON.parse(localStorage.getItem(savedKey) || 'null');
+  if (!order || order.length === 0) {
+    order = players.slice(0, 5).map(p => p.id);
+  }
+  const ordered = order.map(id => {
+    const pl = players.find(p => p.id === id);
+    if (pl) pl.pitcheo = pitcheoMap[pl.id] || {};
+    return pl;
+  }).filter(Boolean);
+  const remaining = players.filter(p => !order.includes(p.id));
+  const addSelect = remaining.length > 0 ? `
+    <div class="coach-add-player">
+      <select id="coach-rotation-add-select">
+        <option value="">Agregar pitcher...</option>
+        ${remaining.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('')}
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="addToCoachRotation('${inscID}')">+ Agregar</button>
+    </div>` : '';
+  document.getElementById('coach-rotation-list').innerHTML = addSelect +
+    ordered.map((p, i) => {
+      const ps = p.pitcheo || {};
+      const era = ps.ERA || ps.PCT || '-';
+      const k = ps.SO || ps.K || '-';
+      const bb = ps.BB || '-';
+      return `
+        <div class="coach-lineup-item">
+          <div class="coach-lineup-pos">${i + 1}</div>
+          <div class="coach-lineup-info">
+            <div class="coach-lineup-name">${p.nombre}</div>
+            <div class="coach-lineup-stats">ERA: ${era} · K: ${k} · BB: ${bb}</div>
+          </div>
+          <div class="coach-lineup-arrows">
+            <button class="coach-arrow-btn" onclick="moveCoachItem('${inscID}','rotation',${i},-1)" ${i===0?'disabled':''}>▲</button>
+            <button class="coach-arrow-btn" onclick="moveCoachItem('${inscID}','rotation',${i},1)" ${i===ordered.length-1?'disabled':''}>▼</button>
+          </div>
+          <button class="btn btn-sm" onclick="removeCoachItem('${inscID}','rotation','${p.id}')" style="font-size:.7rem;padding:.2rem .5rem" title="Quitar">✕</button>
+        </div>`;
+    }).join('');
+}
+
+function renderCoachLineupItem(p, i, total, inscID, type) {
+  const avg = p.stats.PCT || '-';
+  return `
+    <div class="coach-lineup-item">
+      <div class="coach-lineup-pos">${i + 1}</div>
+      <div class="coach-lineup-info">
+        <div class="coach-lineup-name">${p.nombre}</div>
+        <div class="coach-lineup-stats">AVG: ${avg} · SLG: ${p.stats.SLG ? parseFloat(p.stats.SLG).toFixed(3) : '-'}</div>
+      </div>
+      <div class="coach-lineup-arrows">
+        <button class="coach-arrow-btn" onclick="moveCoachItem('${inscID}','${type}',${i},-1)" ${i===0?'disabled':''}>▲</button>
+        <button class="coach-arrow-btn" onclick="moveCoachItem('${inscID}','${type}',${i},1)" ${i===total-1?'disabled':''}>▼</button>
+      </div>
+      <button class="btn btn-sm" onclick="removeCoachItem('${inscID}','${type}','${p.id}')" style="font-size:.7rem;padding:.2rem .5rem" title="Quitar">✕</button>
+    </div>`;
+}
+
+function moveCoachItem(inscID, type, idx, dir) {
+  const key = type === 'lineup' ? `coach_lineup_${inscID}` : `coach_rotation_${inscID}`;
+  const players = getCoachPlayers(inscID);
+  let order = JSON.parse(localStorage.getItem(key) || 'null');
+  if (!order) order = players.slice(0, type === 'lineup' ? 9 : 5).map(p => p.id);
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= order.length) return;
+  [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
+  localStorage.setItem(key, JSON.stringify(order));
+  if (type === 'lineup') loadCoachLineup(inscID);
+  else loadCoachRotation(inscID);
+}
+
+function addToCoachLineup(inscID) {
+  const sel = document.getElementById('coach-lineup-add-select');
+  const id = sel.value;
+  if (!id) return;
+  const key = `coach_lineup_${inscID}`;
+  let order = JSON.parse(localStorage.getItem(key) || '[]');
+  if (!order.includes(id)) order.push(id);
+  localStorage.setItem(key, JSON.stringify(order));
+  loadCoachLineup(inscID);
+}
+
+function addToCoachRotation(inscID) {
+  const sel = document.getElementById('coach-rotation-add-select');
+  const id = sel.value;
+  if (!id) return;
+  const key = `coach_rotation_${inscID}`;
+  let order = JSON.parse(localStorage.getItem(key) || '[]');
+  if (!order.includes(id)) order.push(id);
+  localStorage.setItem(key, JSON.stringify(order));
+  loadCoachRotation(inscID);
+}
+
+function removeCoachItem(inscID, type, playerId) {
+  const key = type === 'lineup' ? `coach_lineup_${inscID}` : `coach_rotation_${inscID}`;
+  let order = JSON.parse(localStorage.getItem(key) || '[]');
+  order = order.filter(id => id !== playerId);
+  localStorage.setItem(key, JSON.stringify(order));
+  if (type === 'lineup') loadCoachLineup(inscID);
+  else loadCoachRotation(inscID);
+}
+
+async function loadCoachPlayersAndRetry(inscID, tab) {
+  const container = document.getElementById(tab === 'lineup' ? 'coach-lineup-list' : 'coach-rotation-list');
+  container.innerHTML = '<div class="empty-state"><div class="inline-spinner"></div> Cargando jugadores...</div>';
+  try {
+    const [data, bateo, pitcheo] = await Promise.all([
+      fetchJugadores(inscID), fetchBateo(inscID), fetchPitcheo(inscID)
+    ]);
+    state.playerCache[inscID] = {
+      jugadores: data ? (data.jugadores || []) : [],
+      bateo: bateo || [],
+      pitcheo: pitcheo || []
+    };
+    if (tab === 'lineup') loadCoachLineup(inscID);
+    else loadCoachRotation(inscID);
+  } catch(e) {
+    container.innerHTML = '<div class="empty-state"><p>Error al cargar jugadores</p></div>';
+  }
+}
+
+function loadCoachNotes(inscID) {
+  const key = `coach_notes_${inscID}`;
+  const saved = localStorage.getItem(key) || '';
+  document.getElementById('coach-notes-area').value = saved;
+  document.getElementById('coach-notes-saved').style.display = 'none';
+}
+
+function saveCoachNotes() {
+  const inscID = document.getElementById('coach-team-select').value;
+  if (!inscID) return;
+  const key = `coach_notes_${inscID}`;
+  localStorage.setItem(key, document.getElementById('coach-notes-area').value);
+  const msg = document.getElementById('coach-notes-saved');
+  msg.style.display = '';
+  setTimeout(() => { msg.style.display = 'none'; }, 2000);
+}
+
+// ══════════════════════════════════════════
+// FEATURE 3: FAVORITE TEAM
+// ══════════════════════════════════════════
+
+function toggleFavTeam(inscID) {
+  const current = localStorage.getItem('fav_team');
+  if (current === inscID) {
+    localStorage.removeItem('fav_team');
+  } else {
+    localStorage.setItem('fav_team', inscID);
+    const profile = JSON.parse(localStorage.getItem('user_profile') || '{}');
+    profile.favTeam = inscID;
+    localStorage.setItem('user_profile', JSON.stringify(profile));
+  }
+  filterEquipos();
+  renderFavTeamBanner();
+  updateMiEquipoBtn();
+}
+
+function renderFavTeamBanner() {
+  const banner = document.getElementById('fav-team-banner');
+  const favId = localStorage.getItem('fav_team');
+  if (!favId || state.equiposEnriched.length === 0) {
+    banner.style.display = 'none';
+    return;
+  }
+  const eq = state.equiposEnriched.find(e => e.InscripcionID === favId);
+  if (!eq) { banner.style.display = 'none'; return; }
+  const img = logoUrl(eq.foto);
+  const record = eq.wins != null ? `${eq.wins}-${eq.loses}` : '';
+  const pos = eq.position ? `#${eq.position} en ${eq.grupo}` : eq.grupo;
+  banner.style.display = '';
+  banner.innerHTML = `
+    <div class="fav-team-card" onclick="openEquipoDetail('${eq.InscripcionID}');navigateTo('equipos')">
+      ${img ? `<img src="${img}" alt="" onerror="this.style.display='none'">` : ''}
+      <div class="fav-team-info">
+        <div class="fav-team-label">⭐ Mi Equipo Favorito</div>
+        <div class="fav-team-name">${eq.teamName}</div>
+        <div class="fav-team-meta">${eq.catLabel} · ${pos}</div>
+      </div>
+      <div class="fav-team-record">${record}</div>
+    </div>`;
+}
+
+function goToFavTeam() {
+  const favId = localStorage.getItem('fav_team');
+  if (!favId) return;
+  navigateTo('equipos');
+  setTimeout(() => openEquipoDetail(favId), 100);
+}
+
+function updateMiEquipoBtn() {
+  const btn = document.getElementById('btnMiEquipo');
+  const favId = localStorage.getItem('fav_team');
+  btn.style.display = favId ? '' : 'none';
+}
+
+// ══════════════════════════════════════════
+// FEATURE 4: USER PROFILE
+// ══════════════════════════════════════════
+
+function openProfileModal() {
+  const modal = document.getElementById('profile-modal');
+  const profile = JSON.parse(localStorage.getItem('user_profile') || '{}');
+  document.getElementById('profile-name').value = profile.name || '';
+  document.getElementById('profile-role').value = profile.role || '';
+  const favSel = document.getElementById('profile-fav-team');
+  favSel.innerHTML = '<option value="">Ninguno</option>' +
+    state.equiposEnriched.map(eq =>
+      `<option value="${eq.InscripcionID}" ${profile.favTeam === eq.InscripcionID ? 'selected' : ''}>${eq.teamName} (${eq.catLabel})</option>`
+    ).join('');
+  document.getElementById('profile-saved-msg').style.display = 'none';
+  modal.style.display = '';
+}
+
+function closeProfileModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('profile-modal').style.display = 'none';
+}
+
+function saveProfile() {
+  const name = document.getElementById('profile-name').value.trim();
+  const role = document.getElementById('profile-role').value;
+  const favTeam = document.getElementById('profile-fav-team').value;
+  const profile = { name, role, favTeam };
+  localStorage.setItem('user_profile', JSON.stringify(profile));
+  if (favTeam) {
+    localStorage.setItem('fav_team', favTeam);
+  } else {
+    localStorage.removeItem('fav_team');
+  }
+  const msg = document.getElementById('profile-saved-msg');
+  msg.style.display = '';
+  setTimeout(() => { msg.style.display = 'none'; }, 2000);
+  loadUserProfile();
+  renderFavTeamBanner();
+  updateMiEquipoBtn();
+  updateCoachNavVisibility();
+}
+
+function loadUserProfile() {
+  const profile = JSON.parse(localStorage.getItem('user_profile') || '{}');
+  const greetEl = document.getElementById('user-greeting-bar');
+  if (profile.name) {
+    greetEl.style.display = '';
+    greetEl.innerHTML = `<div class="user-greeting"><span class="greeting-wave">👋</span> Hola, ${profile.name}!</div>`;
+  } else {
+    greetEl.style.display = 'none';
+  }
+  updateMiEquipoBtn();
+  updateCoachNavVisibility();
+}
+
+function updateCoachNavVisibility() {
+  const profile = JSON.parse(localStorage.getItem('user_profile') || '{}');
+  const li = document.getElementById('nav-coach-li');
+  if (li) {
+    li.style.display = profile.role === 'Coach' ? '' : 'none';
+  }
+}
+
 init();
 
 // Initialize animations after DOM is ready

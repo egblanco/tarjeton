@@ -1630,3 +1630,243 @@ body.light-theme .loading-overlay { background: var(--bg); }
   .trends-player-list { grid-template-columns: 1fr; }
   .trends-stats-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
 }
+
+/* ══════════════════════════════════════════
+   FEATURE: BASEBALL CARD
+   ══════════════════════════════════════════ */
+.baseball-card-modal-content {
+  max-width: 440px; width: 95%;
+}
+.baseball-card {
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: linear-gradient(145deg, #1a2636 0%, #0b1118 50%, #1a2636 100%);
+  border: 3px solid var(--accent);
+  box-shadow: 0 8px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.05);
+  position: relative;
+}
+.baseball-card::before {
+  content: ''; position: absolute; inset: 4px;
+  border: 1px solid rgba(245,158,11,.2); border-radius: calc(var(--radius) - 2px);
+  pointer-events: none; z-index: 1;
+}
+.bc-header {
+  padding: 1.5rem 1.25rem 1rem;
+  background: linear-gradient(135deg, rgba(34,197,94,.15), rgba(245,158,11,.1));
+  text-align: center; position: relative;
+}
+.bc-team-logo {
+  width: 56px; height: 56px; border-radius: 50%;
+  object-fit: cover; border: 3px solid var(--accent);
+  margin-bottom: .5rem; background: var(--bg-surface);
+}
+.bc-player-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.8rem; letter-spacing: 1px; line-height: 1.1;
+  background: linear-gradient(135deg, #fff, var(--accent));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.bc-team-name {
+  font-size: .78rem; color: var(--text-muted); margin-top: .15rem;
+}
+.bc-meta {
+  display: flex; justify-content: center; gap: 1rem; margin-top: .5rem;
+  font-size: .72rem; color: var(--text-dim);
+}
+.bc-meta span { display: flex; align-items: center; gap: .25rem; }
+.bc-body { padding: 1rem 1.25rem 1.25rem; }
+.bc-stats-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem;
+  margin-bottom: .75rem;
+}
+.bc-stat {
+  text-align: center; padding: .5rem .25rem;
+  background: var(--bg-surface); border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.bc-stat-val {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.4rem; color: var(--primary); line-height: 1;
+}
+.bc-stat-label {
+  font-size: .55rem; font-weight: 700; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: .5px; margin-top: .15rem;
+}
+.bc-pitch-rec {
+  text-align: center; padding: .6rem;
+  background: linear-gradient(135deg, rgba(245,158,11,.08), rgba(34,197,94,.08));
+  border-radius: var(--radius-sm); border: 1px solid rgba(245,158,11,.15);
+}
+.bc-pitch-label {
+  font-size: .6rem; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: .25rem;
+}
+.bc-pitch-val {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.3rem; color: var(--accent); letter-spacing: 2px;
+}
+.bc-footer {
+  text-align: center; padding: .5rem;
+  font-size: .55rem; color: var(--text-dim); letter-spacing: 1px;
+  border-top: 1px solid var(--border);
+}
+.btn-ver-tarjeta {
+  background: linear-gradient(135deg, var(--accent), #d97706);
+  color: #0b1118; border: none; border-radius: 12px;
+  padding: .25rem .6rem; font-size: .65rem; font-weight: 700;
+  cursor: pointer; transition: all .2s; font-family: inherit;
+  white-space: nowrap;
+}
+.btn-ver-tarjeta:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(245,158,11,.3); }
+
+/* ══════════════════════════════════════════
+   FEATURE: COACH TOOLS
+   ══════════════════════════════════════════ */
+.coach-tabs {
+  display: flex; gap: .35rem; flex-wrap: wrap; margin-bottom: 1rem;
+}
+.coach-tab-content { display: none; }
+.coach-tab-content.active { display: block; }
+.coach-lineup-list {
+  display: flex; flex-direction: column; gap: .5rem;
+}
+.coach-lineup-item {
+  display: flex; align-items: center; gap: .75rem;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: .75rem 1rem;
+  transition: all .2s;
+}
+.coach-lineup-item:hover { border-color: var(--primary); }
+.coach-lineup-pos {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.4rem; color: var(--accent);
+  width: 32px; text-align: center; flex-shrink: 0;
+}
+.coach-lineup-info { flex: 1; overflow: hidden; }
+.coach-lineup-name {
+  font-weight: 700; font-size: .88rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.coach-lineup-stats {
+  font-size: .72rem; color: var(--text-muted); margin-top: .1rem;
+}
+.coach-lineup-arrows {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.coach-arrow-btn {
+  width: 28px; height: 22px; border-radius: 4px;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  color: var(--text-muted); cursor: pointer; font-size: .75rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s; font-family: inherit;
+}
+.coach-arrow-btn:hover { background: var(--primary-glow); color: var(--primary); border-color: var(--primary); }
+.coach-notes-box {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.25rem;
+}
+.coach-notes-box textarea {
+  width: 100%; padding: .75rem 1rem;
+  background: var(--bg-surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: .88rem; font-family: inherit; outline: none;
+  resize: vertical; transition: border-color .2s;
+}
+.coach-notes-box textarea:focus { border-color: var(--primary); }
+.coach-add-player {
+  display: flex; gap: .5rem; margin-bottom: 1rem;
+}
+.coach-add-player select {
+  flex: 1; padding: .5rem .75rem;
+  background: var(--bg-surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: .85rem; font-family: inherit; outline: none;
+}
+.coach-add-player select:focus { border-color: var(--primary); }
+
+/* ══════════════════════════════════════════
+   FEATURE: FAVORITE TEAM
+   ══════════════════════════════════════════ */
+.fav-team-banner {
+  max-width: 1100px; margin: 0 auto;
+  padding: .85rem 1.25rem;
+}
+.fav-team-card {
+  display: flex; align-items: center; gap: 1rem;
+  background: linear-gradient(135deg, rgba(34,197,94,.08), rgba(245,158,11,.06));
+  border: 1px solid rgba(34,197,94,.2);
+  border-radius: var(--radius); padding: 1rem 1.25rem;
+  cursor: pointer; transition: all .3s;
+}
+.fav-team-card:hover { border-color: var(--primary); transform: translateY(-1px); box-shadow: var(--shadow); }
+.fav-team-card img {
+  width: 48px; height: 48px; border-radius: 50%;
+  object-fit: cover; border: 2px solid var(--primary);
+  background: var(--bg-surface); flex-shrink: 0;
+}
+.fav-team-info { flex: 1; }
+.fav-team-label {
+  font-size: .6rem; font-weight: 700; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.fav-team-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.3rem; line-height: 1.2;
+}
+.fav-team-meta { font-size: .78rem; color: var(--text-muted); margin-top: .1rem; }
+.fav-team-record {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.6rem; color: var(--primary); white-space: nowrap;
+}
+.fav-star {
+  background: none; border: none; cursor: pointer;
+  font-size: 1.1rem; padding: .15rem; transition: transform .2s;
+  line-height: 1; flex-shrink: 0;
+}
+.fav-star:hover { transform: scale(1.3); }
+.fav-star.active { filter: drop-shadow(0 0 4px rgba(245,158,11,.5)); }
+.btn-mi-equipo {
+  background: linear-gradient(135deg, rgba(245,158,11,.15), rgba(34,197,94,.1));
+  border: 1px solid rgba(245,158,11,.3); border-radius: 20px;
+  padding: .3rem .7rem; font-size: .7rem; font-weight: 700;
+  cursor: pointer; color: var(--accent); white-space: nowrap;
+  transition: all .2s; font-family: inherit;
+}
+.btn-mi-equipo:hover { border-color: var(--accent); background: rgba(245,158,11,.2); }
+
+/* ══════════════════════════════════════════
+   FEATURE: USER PROFILE
+   ══════════════════════════════════════════ */
+.profile-icon-btn {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 50%; width: 34px; height: 34px;
+  font-size: 1rem; cursor: pointer; transition: all .2s;
+  display: flex; align-items: center; justify-content: center;
+}
+.profile-icon-btn:hover { border-color: var(--primary); background: var(--primary-glow); }
+.profile-modal-content {
+  max-width: 380px; width: 90%;
+}
+.profile-form {
+  display: flex; flex-direction: column; gap: .25rem;
+}
+.user-greeting-bar {
+  max-width: 1100px; margin: 0 auto;
+  padding: .75rem 1.25rem 0;
+}
+.user-greeting {
+  font-size: 1.1rem; font-weight: 600; color: var(--text);
+  padding: .5rem 0;
+}
+.user-greeting .greeting-wave { font-size: 1.3rem; }
+
+/* ── Responsive additions for new features ── */
+@media (max-width: 768px) {
+  .baseball-card-modal-content { max-width: 95%; }
+  .bc-stats-grid { grid-template-columns: repeat(3, 1fr); }
+  .bc-player-name { font-size: 1.4rem; }
+  .fav-team-card { flex-wrap: wrap; }
+  .coach-tabs { flex-wrap: wrap; }
+  .btn-mi-equipo { padding: .25rem .5rem; font-size: .62rem; }
+  .profile-icon-btn { width: 30px; height: 30px; font-size: .9rem; }
+}
