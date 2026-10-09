@@ -3310,10 +3310,12 @@ function loadCoachLineup(inscID) {
   const savedKey = `coach_lineup_${inscID}`;
   let order = JSON.parse(localStorage.getItem(savedKey) || 'null');
   if (!order || order.length === 0) {
-    order = players.slice(0, 9).map(p => p.id);
+    order = generarLineupRecomendado(players);
   }
   const ordered = order.map(id => players.find(p => p.id === id)).filter(Boolean);
   const remaining = players.filter(p => !order.includes(p.id));
+
+  const roles = ['Contacto/Velocidad','Contacto/Mover corr.','Mejor bateador','Poder (Cleanup)','2do Poder','Buen bateador','Contacto medio','Defensa/Bajo','Velocidad/Contacto'];
   const addSelect = remaining.length > 0 ? `
     <div class="coach-add-player">
       <select id="coach-lineup-add-select">
@@ -3322,8 +3324,9 @@ function loadCoachLineup(inscID) {
       </select>
       <button class="btn btn-primary btn-sm" onclick="addToCoachLineup('${inscID}')">+ Agregar</button>
     </div>` : '';
-  document.getElementById('coach-lineup-list').innerHTML = addSelect +
-    ordered.map((p, i) => renderCoachLineupItem(p, i, ordered.length, inscID, 'lineup')).join('');
+  const recBtn = `<button class="btn btn-secondary btn-sm" onclick="resetCoachLineup('${inscID}')" style="margin-bottom:8px;">🧠 Generar lineup recomendado</button>`;
+  document.getElementById('coach-lineup-list').innerHTML = recBtn + addSelect +
+    ordered.map((p, i) => renderCoachLineupItem(p, i, ordered.length, inscID, 'lineup', roles[i] || '')).join('');
 }
 
 function loadCoachRotation(inscID) {
@@ -3378,13 +3381,60 @@ function loadCoachRotation(inscID) {
     }).join('');
 }
 
-function renderCoachLineupItem(p, i, total, inscID, type) {
+function generarLineupRecomendado(players) {
+  const scored = players.map(p => {
+    const avg = parseFloat(p.stats.PCT) || 0;
+    const slg = parseFloat(p.stats.SLG) || 0;
+    const iso = slg - avg;
+    const h = parseInt(p.stats.H) || 0;
+    const hr = parseInt(p.stats.HR) || 0;
+    const r = parseInt(p.stats.R) || 0;
+    return { ...p, avg, slg, iso, h, hr, r, contact: avg + h*0.01, power: iso + hr*0.05 + slg*0.5 };
+  });
+  const used = new Set();
+  const pick = (sortFn) => {
+    const sorted = [...scored].filter(p => !used.has(p.id)).sort(sortFn);
+    if (sorted.length === 0) return null;
+    used.add(sorted[0].id);
+    return sorted[0].id;
+  };
+  const lineup = [];
+  // 1° Contacto alto, carreras
+  lineup.push(pick((a,b) => (b.avg + b.r*0.02) - (a.avg + a.r*0.02)));
+  // 2° Buen contacto
+  lineup.push(pick((a,b) => (b.avg + b.h*0.01) - (a.avg + a.h*0.01)));
+  // 3° Mejor bateador overall
+  lineup.push(pick((a,b) => (b.avg*2 + b.slg + b.power) - (a.avg*2 + a.slg + a.power)));
+  // 4° Cleanup - más poder
+  lineup.push(pick((a,b) => b.power - a.power));
+  // 5° Segundo poder
+  lineup.push(pick((a,b) => b.power - a.power));
+  // 6° Buen bateador
+  lineup.push(pick((a,b) => b.avg - a.avg));
+  // 7° Contacto medio
+  lineup.push(pick((a,b) => b.contact - a.contact));
+  // 8° Defensa/bajo
+  lineup.push(pick((a,b) => b.avg - a.avg));
+  // 9° Lo que quede
+  lineup.push(pick((a,b) => (b.avg + b.r*0.01) - (a.avg + a.r*0.01)));
+  return lineup.filter(Boolean);
+}
+
+function resetCoachLineup(inscID) {
+  const players = getCoachPlayers(inscID);
+  const order = generarLineupRecomendado(players);
+  localStorage.setItem(`coach_lineup_${inscID}`, JSON.stringify(order));
+  loadCoachLineup(inscID);
+}
+
+function renderCoachLineupItem(p, i, total, inscID, type, rol) {
   const avg = p.stats.PCT || '-';
+  const rolTag = rol ? `<span style="color:var(--accent);font-size:.7rem;font-weight:600;"> · ${rol}</span>` : '';
   return `
     <div class="coach-lineup-item">
       <div class="coach-lineup-pos">${i + 1}</div>
       <div class="coach-lineup-info">
-        <div class="coach-lineup-name">${p.nombre}</div>
+        <div class="coach-lineup-name">${p.nombre}${rolTag}</div>
         <div class="coach-lineup-stats">AVG: ${avg} · SLG: ${p.stats.SLG ? parseFloat(p.stats.SLG).toFixed(3) : '-'}</div>
       </div>
       <div class="coach-lineup-arrows">
