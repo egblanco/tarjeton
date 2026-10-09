@@ -3427,12 +3427,28 @@ function resetCoachLineup(inscID) {
   loadCoachLineup(inscID);
 }
 
+function getCoachPositions(inscID) {
+  try { return JSON.parse(localStorage.getItem(`coach_pos_${inscID}`) || '{}'); } catch { return {}; }
+}
+function saveCoachPosition(inscID, jugadorID, pos) {
+  const positions = getCoachPositions(inscID);
+  positions[jugadorID] = pos;
+  localStorage.setItem(`coach_pos_${inscID}`, JSON.stringify(positions));
+}
+
 function renderCoachLineupItem(p, i, total, inscID, type, rol) {
   const avg = p.stats.PCT || '-';
   const rolTag = rol ? `<span style="color:var(--accent);font-size:.7rem;font-weight:600;"> · ${rol}</span>` : '';
+  const positions = getCoachPositions(inscID);
+  const currentPos = positions[p.id] || '';
+  const posOptions = ['','P','C','1B','2B','3B','SS','LF','CF','RF','DH','BE'];
+  const posSelect = `<select class="coach-pos-select" onchange="saveCoachPosition('${inscID}','${p.id}',this.value)" title="Posición defensiva">
+    ${posOptions.map(pos => `<option value="${pos}" ${pos === currentPos ? 'selected' : ''}>${pos || '---'}</option>`).join('')}
+  </select>`;
   return `
     <div class="coach-lineup-item">
       <div class="coach-lineup-pos">${i + 1}</div>
+      ${posSelect}
       <div class="coach-lineup-info">
         <div class="coach-lineup-name">${p.nombre}${rolTag}</div>
         <div class="coach-lineup-stats">AVG: ${avg} · SLG: ${p.stats.SLG ? parseFloat(p.stats.SLG).toFixed(3) : '-'}</div>

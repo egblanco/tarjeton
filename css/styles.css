@@ -1755,6 +1755,11 @@ body.light-theme .loading-overlay { background: var(--bg); }
   font-size: 1.4rem; color: var(--accent);
   width: 32px; text-align: center; flex-shrink: 0;
 }
+.coach-pos-select {
+  background: var(--bg-primary); color: #f59e0b; border: 1px solid var(--border);
+  border-radius: 4px; padding: 2px 4px; font-size: .75rem; font-weight: 800;
+  width: 44px; text-align: center; flex-shrink: 0; cursor: pointer;
+}
 .coach-lineup-info { flex: 1; overflow: hidden; }
 .coach-lineup-name {
   font-weight: 700; font-size: .88rem;
