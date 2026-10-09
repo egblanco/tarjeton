@@ -794,6 +794,17 @@ function toggleMenu() {
   document.querySelector('.nav-toggle').classList.toggle('open');
 }
 
+function toggleNavMore() {
+  document.getElementById('navMoreMenu').classList.toggle('open');
+}
+function closeNavMore() {
+  document.getElementById('navMoreMenu').classList.remove('open');
+}
+document.addEventListener('click', function(e) {
+  const wrapper = document.querySelector('.nav-more-wrapper');
+  if (wrapper && !wrapper.contains(e.target)) closeNavMore();
+});
+
 function goToCategory(catID) {
   document.getElementById('res-cat').value = catID;
   navigateTo('resultados');

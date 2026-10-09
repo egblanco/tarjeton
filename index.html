@@ -81,16 +81,21 @@
         <li><a href="#" class="nav-link" data-section="standings" onclick="navigateTo('standings')">Posiciones</a></li>
         <li><a href="#" class="nav-link" data-section="equipos" onclick="navigateTo('equipos')">Equipos</a></li>
         <li><a href="#" class="nav-link" data-section="jugadores" onclick="navigateTo('jugadores')">Jugadores</a></li>
-        <li><a href="#" class="nav-link" data-section="comparar" onclick="navigateTo('comparar')">Comparar</a></li>
-        <li><a href="#" class="nav-link" data-section="lideres" onclick="navigateTo('lideres')">Líderes</a></li>
-        <li><a href="#" class="nav-link" data-section="calendario" onclick="navigateTo('calendario')">Calendario</a></li>
-        <li><a href="#" class="nav-link" data-section="noticias" onclick="navigateTo('noticias')">Noticias</a></li>
-        <li><a href="#" class="nav-link" data-section="prediccion" onclick="navigateTo('prediccion')">Predicción</a></li>
-        <li><a href="#" class="nav-link" data-section="eliminatorias" onclick="navigateTo('eliminatorias')">Eliminatorias</a></li>
-        <li><a href="#" class="nav-link" data-section="mvp" onclick="navigateTo('mvp')">MVP</a></li>
-        <li><a href="#" class="nav-link" data-section="tendencias" onclick="navigateTo('tendencias')">Tendencias</a></li>
-        <li id="nav-coach-li" style="display:none"><a href="#" class="nav-link" data-section="coach" onclick="navigateTo('coach')">🧑‍🏫 Coach</a></li>
-        <li><a href="#" class="nav-link" data-section="admin" onclick="navigateTo('admin')">🔒 Admin</a></li>
+        <li class="nav-more-wrapper">
+          <a href="#" class="nav-link" onclick="event.preventDefault();toggleNavMore()">Más ▾</a>
+          <ul class="nav-more-menu" id="navMoreMenu">
+            <li><a href="#" onclick="navigateTo('comparar');closeNavMore()">⚔️ Comparar</a></li>
+            <li><a href="#" onclick="navigateTo('lideres');closeNavMore()">🏅 Líderes</a></li>
+            <li><a href="#" onclick="navigateTo('calendario');closeNavMore()">📅 Calendario</a></li>
+            <li><a href="#" onclick="navigateTo('noticias');closeNavMore()">📰 Noticias</a></li>
+            <li><a href="#" onclick="navigateTo('prediccion');closeNavMore()">🔮 Predicción</a></li>
+            <li><a href="#" onclick="navigateTo('eliminatorias');closeNavMore()">🏆 Eliminatorias</a></li>
+            <li><a href="#" onclick="navigateTo('mvp');closeNavMore()">🗳️ MVP</a></li>
+            <li><a href="#" onclick="navigateTo('tendencias');closeNavMore()">📈 Tendencias</a></li>
+            <li id="nav-coach-li" style="display:none"><a href="#" onclick="navigateTo('coach');closeNavMore()">🧑‍🏫 Coach</a></li>
+            <li><a href="#" onclick="navigateTo('admin');closeNavMore()">🔒 Admin</a></li>
+          </ul>
+        </li>
       </ul>
     </div>
   </nav>

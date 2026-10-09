@@ -58,7 +58,20 @@ body {
 }
 .brand-sub { display: block; font-size: .65rem; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; }
 
-.nav-links { display: flex; list-style: none; gap: .25rem; }
+.nav-links { display: flex; list-style: none; gap: .25rem; align-items: center; }
+.nav-more-wrapper { position: relative; }
+.nav-more-menu {
+  display: none; position: absolute; top: 100%; right: 0; z-index: 999;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: .5rem 0; min-width: 200px; box-shadow: 0 8px 24px rgba(0,0,0,.3);
+  list-style: none;
+}
+.nav-more-menu.open { display: block; }
+.nav-more-menu li a {
+  display: block; padding: .6rem 1rem; color: var(--text-primary);
+  text-decoration: none; font-size: .9rem; transition: background .2s;
+}
+.nav-more-menu li a:hover { background: var(--bg-secondary); color: var(--accent); }
 .nav-link {
   color: var(--text-muted); text-decoration: none;
   padding: .5rem .85rem; border-radius: var(--radius-sm);
